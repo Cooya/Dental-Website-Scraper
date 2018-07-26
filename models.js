@@ -42,24 +42,8 @@ const ItemSchema = new mongoose.Schema({
         type: Number,
         required: false
     },
-    lotBy3: {
-        type: Number,
-        required: false
-    },
-    lotBy4: {
-        type: Number,
-        required: false
-    },
-    lotBy6: {
-        type: Number,
-        required: false
-    },
-    lotBy8: {
-        type: Number,
-        required: false
-    },
-    lotBy10: {
-        type: Number,
+    lots: {
+        type: String,
         required: false
     }
 });

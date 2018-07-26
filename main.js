@@ -18,11 +18,10 @@ const brandLastIndex = 200;
 const categoriesUrl = 'https://www.dentalpromotion.fr/achat/cat-x-{id}.html';
 const categoryFirstIndex = 0;
 const categoryLastIndex = 400;
-const dbUrl = 'mongodb://localhost/coya';
+const dbUrl = 'mongodb://localhost:27017/coya';
 const byBrandDbFile = './database/item-links-by-brand.txt';
 const byCategoryDbFile = './database/item-links-by-category.txt';
-const lotsFile = './lots.txt'
-const outputFile = './ouput.xlsx';
+const outputFile = './output/ouput.xlsx';
 
 const TinyDB = require('./tiny_db');
 const ItemLink = require('./models').ItemLink;
@@ -76,7 +75,7 @@ async function scrapProductData(url) {
         html = await doRequest(url);
     }
     catch(e) {
-        if(e  == 'Bad status code : 403')
+        if(e == 'Bad status code : 403')
             return null;
         else {
             console.error(e);
@@ -86,27 +85,16 @@ async function scrapProductData(url) {
     let $ = cheerio.load(html);
 
     let designationAndReference = $('div.fp_produit > h4');
-    let lotExplanationTable = $('div.lot_explanation_table').text();
-    if(lotExplanationTable)
-        await writeFile(lotsFile, lotExplanationTable + '\n', {flag: 'a'});
-
-    let result = {
+    return {
         url: url,
         designation: $('h1.titre_produit').text(),
         reference: $(designationAndReference[0]).text().replace('Référence ', ''),
         barcode: $(designationAndReference[1]).text().replace('Code-barres : ', ''),
         brand: $('div.fp_produit > h3 a').text() || null,
         currentPrice: $('span.prix > span').text().replace(',', '.').replace(' ', '') || null,
-        priceBefore: $('td.middle > del').text().replace(' €', '').replace(',', '.').replace(' ', '') || null
+        priceBefore: $('td.middle > del').text().replace(' €', '').replace(',', '.').replace(' ', '') || null,
+        lots: $('div.lot_explanation_table').text() || null
     };
-
-    let lotBy;
-    for(index of [3, 4, 6, 8, 10]) {
-        lotBy = new RegExp('Par ' + index + ' \: ([0-9, ]+) € TTC').exec(lotExplanationTable);
-        result['lotBy' + index] = lotBy && lotBy[1].replace(',', '.').replace(' ', '');
-    }
-
-    return result;
 }
 
 async function markItemLinkAsProcessed(itemLink) {
@@ -141,14 +129,6 @@ async function saveItemInDatabase(itemData) {
 }
 
 async function saveItemLinksInDatabase() {
-    try {
-        await mongoose.connect(dbUrl);
-    }
-    catch(e) {
-        console.error(e);
-        process.exit(1);
-    }
-
     const byBrandDb = new TinyDB(byBrandDbFile);
     await byBrandDb.load();
     const byCategoryDb = new TinyDB(byCategoryDbFile);
@@ -181,31 +161,79 @@ async function saveItemLinksInDatabase() {
     process.exit(0);
 }
 
+async function processItemLink(itemLink) {
+    console.log('Processing item with url = "' + itemLink.url + '"...');
+    let data = await scrapProductData(itemLink.url);
+    if(data)
+        await saveItemInDatabase(data);
+    return await markItemLinkAsProcessed(itemLink);
+}
+
+function determineLots(items, lots) {
+    let needTodetermineLots = !lots.length;
+    let lot;
+    items = items.map((item) => {
+        item = Object.assign({}, item._doc);
+        for(let j = 0; j < 110; ++j) {
+            lot = new RegExp('Par ' + j + ' \: ([0-9, ]+) € TTC').exec(item.lots);
+            if(lot) {
+                item['lotBy' + j] = lot[1].replace(',', '.').replace(' ', '');
+                if(needTodetermineLots && lots.indexOf(j) == -1)
+                    lots.push(j);
+            }
+        }
+        return item;
+    });
+    
+    if(needTodetermineLots) {
+        lots = lots.sort((a, b) => {return a - b});
+        for(let i = 0; i < lots.length; ++i)
+            lots[i] = 'lotBy' + lots[i];
+    }
+    return items;
+}
+
 (async function main() {
     try {
-        await mongoose.connect(dbUrl);
+        await mongoose.connect(dbUrl, {useNewUrlParser: true});
     }
     catch(e) {
         console.error(e);
         process.exit(1);
     }
 
+    //await saveItemLinksInDatabase();
+
     const itemLinks = await ItemLink.find({processed: false});
-    let data;
-    let i = 0;
-    for(let itemLink of itemLinks) {
-        console.log('Processing item with url = "' + itemLink.url + '"...');
-        data = await scrapProductData(itemLink.url);
-        if(data)
-            await saveItemInDatabase(data);
-        await markItemLinkAsProcessed(itemLink);
+    let promises = [];
+    for(let i = 0; i < itemLinks.length; ++i) {
+        promises.push(processItemLink(itemLinks[i]))
+        console.log(i + '/' + itemLinks.length);
 
-        console.log((++i) + '/' + itemLinks.length);
-        sleep(1000);
+        if(i % 10 == 0) {
+            console.log('Waiting for promises...');
+            await Promise.all(promises);
+            promises = [];
+        }
     }
+    await Promise.all(promises);
 
-    const xls = json2xls(await Item.find(), {
-        fields: ['url', 'designation', 'reference', 'barcode', 'brand', 'currentPrice', 'priceBefore', 'lotBy3', 'lotBy4', 'lotBy6', 'lotBy8']
+    let lotFields = [
+        'lotBy2',
+        'lotBy3',
+        'lotBy4',
+        'lotBy5',
+        'lotBy6',
+        'lotBy10',
+        'lotBy12',
+        'lotBy20',
+        'lotBy30',
+        'lotBy50'
+    ];
+    const items = determineLots(await Item.find(), lotFields);
+    
+    const xls = json2xls(items, {
+        fields: ['url', 'designation', 'reference', 'barcode', 'brand', 'currentPrice', 'priceBefore'].concat(lotFields)
     });
 
     await writeFile(outputFile, xls, 'binary');
