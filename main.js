@@ -22,7 +22,7 @@ const categoryLastIndex = 400;
 
 // input/output
 const dbUrl = 'mongodb://localhost:27017/coya';
-const outputFile = './output/ouput.xlsx';
+const outputFile = './output/output.xlsx';
 
 // database models
 const CategoryLink = require('./models').CategoryLink;
@@ -187,6 +187,7 @@ async function markEntityAsProcessed(entity) {
     try {
         entity.processed = true;
         await entity.save();
+        console.log('Entry marked.');
     }
     catch(e) {
         console.error(e);
@@ -226,7 +227,7 @@ function determineLots(items, lots) {
     let lot;
     items = items.map((item) => {
         item = Object.assign({}, item._doc);
-        for(let j = 0; j < 110; ++j) {
+        for(let j = 0; j < 505; ++j) {
             lot = new RegExp('Par ' + j + ' \: ([0-9, ]+) € TTC').exec(item.lots);
             if(lot) {
                 item['lotBy' + j] = lot[1].replace(',', '.').replace(' ', '');
@@ -254,32 +255,48 @@ function determineLots(items, lots) {
         process.exit(1);
     }
 
-    //await getAllItemLinksFromCategories();
-    //process.exit(0);
+    // await getAllItemLinksFromCategories();
+    // process.exit(0);
 
-    const itemLinks = await ItemLink.find({processed: false});
-    let promises = [];
-    for(let i = 0; i < itemLinks.length; ++i) {
-        promises.push(processItemLink(itemLinks[i]))
-        console.log(i + '/' + itemLinks.length);
+    // const itemLinks = await ItemLink.find({processed: false});
+    // let promises = [];
+    // for(let i = 0; i < itemLinks.length; ++i) {
+    //     promises.push(processItemLink(itemLinks[i]))
+    //     console.log(i + '/' + itemLinks.length);
 
-        if(i % 10 == 0) {
-            console.log('Waiting for promises...');
-            await Promise.all(promises);
-            promises = [];
-        }
-    }
-    await Promise.all(promises);
-    process.exit(0);
+    //     if(i % 10 == 0) {
+    //         console.log('Waiting for promises...');
+    //         await Promise.all(promises);
+    //         promises = [];
+    //     }
+    // }
+    // await Promise.all(promises);
+    // process.exit(0);
 
-    let lotFields = [];
+    let lotFields = [
+        'lotBy2',
+        'lotBy3',
+        'lotBy4',
+        'lotBy5',
+        'lotBy6',
+        'lotBy8',
+        'lotBy10',
+        'lotBy12',
+        'lotBy20',
+        'lotBy30',
+        'lotBy50',
+        'lotBy100'
+    ];
     const items = determineLots(await Item.find(), lotFields);
-    process.exit(0);
+    console.log(lotFields);
+    // process.exit(0);
     
+    console.log('Building xslx data...');
     const xls = json2xls(items, {
         fields: ['url', 'designation', 'reference', 'barcode', 'brand', 'currentPrice', 'priceBefore'].concat(lotFields)
     });
 
+    console.log('Writing into output file...');
     await writeFile(outputFile, xls, 'binary');
     process.exit(0);
 })();
