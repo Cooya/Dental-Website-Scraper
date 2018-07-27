@@ -1,5 +1,17 @@
 const mongoose = require('mongoose');
 
+const CategoryLinkSchema = new mongoose.Schema({
+    url: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    processed: {
+        type: Boolean,
+        required: true
+    }
+});
+
 const ItemLinkSchema = new mongoose.Schema({
     url: {
         type: String,
@@ -57,6 +69,7 @@ ItemSchema.pre('validate', function(next) {
 });
 
 module.exports = {
+    CategoryLink: mongoose.model('CategoryLink', CategoryLinkSchema),
     ItemLink: mongoose.model('ItemLink', ItemLinkSchema),
     Item: mongoose.model('Item', ItemSchema)
 };

@@ -11,19 +11,21 @@ const sleep = require('system-sleep');
 
 const writeFile = util.promisify(fs.writeFile);
 
+// urls and indexes
 const brandsUrl = 'https://www.dentalpromotion.fr/achat/marque.php?id=';
 const brandFirstIndex = 0;
 const brandLastIndex = 200;
-
 const categoriesUrl = 'https://www.dentalpromotion.fr/achat/cat-x-{id}.html';
+const completeCategoryUrlSuffix = '?nombre=*&multipage=session_multipage_affiche_produits';
 const categoryFirstIndex = 0;
 const categoryLastIndex = 400;
+
+// input/output
 const dbUrl = 'mongodb://localhost:27017/coya';
-const byBrandDbFile = './database/item-links-by-brand.txt';
-const byCategoryDbFile = './database/item-links-by-category.txt';
 const outputFile = './output/ouput.xlsx';
 
-const TinyDB = require('./tiny_db');
+// database models
+const CategoryLink = require('./models').CategoryLink;
 const ItemLink = require('./models').ItemLink;
 const Item = require('./models').Item;
 
@@ -40,16 +42,99 @@ function doRequest(url) {
     });
 }
 
-async function getProductLinksFromCategories(index) {
+function doRedirectedRequest(url) {
+    return new Promise(function (resolve, reject) {
+        request(url, {followRedirect: false}, function (error, res, body) {
+            if(error)
+                reject(error);
+            else if(res.statusCode != 200 && res.statusCode != 301 && res.statusCode != 302)
+                reject('Bad status code : ' + res.statusCode);
+            else
+                resolve(res.headers.location);
+        });
+    });
+}
+
+async function getAllItemLinksFromCategories() {
+    let promises = [];
+    let entities = [];
+    let results;
+    let i = 0;
+    let itemLink;
+    let categoryLinksCount = await CategoryLink.estimatedDocumentCount();
+    for(let categoryLink of await CategoryLink.find({processed: false})) {
+        if(categoryLink.url == 'https://www.dentalpromotion.fr/achat/cat-instruments-extraction-154.html') {
+            i++;
+            continue;
+        }
+        promises.push(getItemLinksFromCategory(categoryLink.url))
+        entities.push(categoryLink);
+
+        if(++i % 10 == 0 || i == categoryLinksCount) {
+            console.log('Waiting for promises...');
+            results  = await Promise.all(promises);
+            for(let links of results) {
+                for(let link of links) {
+                    console.log(link);
+                    itemLink = new ItemLink({url: link, processed: false})
+                    await itemLink.validate();
+                    try {
+                        await itemLink.save();
+                    }
+                    catch(e) {
+                        if(e.message.indexOf('E11000 duplicate key error collection') != -1) {
+                            console.error('Item already processed...');
+                            return;
+                        }
+                
+                        console.error(e);
+                        process.exit(1);
+                    }
+                }
+            }
+            for(let entity of entities)
+                await markEntityAsProcessed(entity);
+            promises = [];
+            entities = [];
+        }
+    }
+}
+
+async function getRealCategoryLink(index) {
     const url = categoriesUrl.replace('{id}', index);
+    console.log('Requesting ' + url + '...');
+    let link;
+    try {
+        link = await doRedirectedRequest(url);
+        console.log(link);
+    }
+    catch(e) {
+        if(e == 'Bad status code : 403')
+            return null;
+        else {
+            console.error(e);
+            process.exit(1);
+        }
+    }
+    if(link != 'https://www.dentalpromotion.fr/')
+        return link;
+    return null;
+}
+
+async function getItemLinksFromCategory(categoryUrl) {
+    const url = categoryUrl + completeCategoryUrlSuffix;
     console.log('Requesting ' + url + '...');
     let html;
     try {
         html = await doRequest(url);
     }
     catch(e) {
-        console.error(e);
-        process.exit(1);
+        if(e == 'Bad status code : 403')
+            return null;
+        else {
+            console.error(e);
+            process.exit(1);
+        }
     }
     let $ = cheerio.load(html);
     let productLinks = [];
@@ -92,16 +177,16 @@ async function scrapProductData(url) {
         barcode: $(designationAndReference[1]).text().replace('Code-barres : ', ''),
         brand: $('div.fp_produit > h3 a').text() || null,
         currentPrice: $('span.prix > span').text().replace(',', '.').replace(' ', '') || null,
-        priceBefore: $('td.middle > del').text().replace(' €', '').replace(',', '.').replace(' ', '') || null,
+        priceBefore: $('div.product_affiche_prix td.middle > del').text().replace(' €', '').replace(',', '.').replace(' ', '') || null,
         lots: $('div.lot_explanation_table').text() || null
     };
 }
 
-async function markItemLinkAsProcessed(itemLink) {
+async function markEntityAsProcessed(entity) {
     console.log('Marking the last processed item link as processed...');
     try {
-        itemLink.processed = true;
-        await itemLink.save();
+        entity.processed = true;
+        await entity.save();
     }
     catch(e) {
         console.error(e);
@@ -112,10 +197,10 @@ async function markItemLinkAsProcessed(itemLink) {
 async function saveItemInDatabase(itemData) {
     try {
         const item = new Item(itemData);
+        console.log(itemData);
         await item.validate();
         await item.save();
         console.log('Item saved in database.');
-        console.log(itemData);
     }
     catch(e) {
         if(e.message.indexOf('E11000 duplicate key error collection') != -1) {
@@ -128,45 +213,12 @@ async function saveItemInDatabase(itemData) {
     }
 }
 
-async function saveItemLinksInDatabase() {
-    const byBrandDb = new TinyDB(byBrandDbFile);
-    await byBrandDb.load();
-    const byCategoryDb = new TinyDB(byCategoryDbFile);
-    await byCategoryDb.load();
-
-    let counter;
-    let itemLink;
-    for(let db of [byCategoryDb.get(), byBrandDb.get()]) {
-        counter = 0;
-        for(let url of db) {
-            itemLink = new ItemLink({url: url, processed: false});
-            try {
-                await itemLink.validate();
-                await itemLink.save();
-                counter++;
-            }
-            catch(e) {
-                if(e.message.indexOf('E11000 duplicate key error collection') == -1) {
-                    console.error(e);
-                    process.exit(1);
-                }
-            }
-        }
-        console.log(counter);
-    }
-
-    const itemLinks = await ItemLink.find();
-    console.log(itemLinks.length);
-
-    process.exit(0);
-}
-
 async function processItemLink(itemLink) {
     console.log('Processing item with url = "' + itemLink.url + '"...');
     let data = await scrapProductData(itemLink.url);
     if(data)
         await saveItemInDatabase(data);
-    return await markItemLinkAsProcessed(itemLink);
+    return await markEntityAsProcessed(itemLink);
 }
 
 function determineLots(items, lots) {
@@ -202,7 +254,8 @@ function determineLots(items, lots) {
         process.exit(1);
     }
 
-    //await saveItemLinksInDatabase();
+    //await getAllItemLinksFromCategories();
+    //process.exit(0);
 
     const itemLinks = await ItemLink.find({processed: false});
     let promises = [];
@@ -217,20 +270,11 @@ function determineLots(items, lots) {
         }
     }
     await Promise.all(promises);
+    process.exit(0);
 
-    let lotFields = [
-        'lotBy2',
-        'lotBy3',
-        'lotBy4',
-        'lotBy5',
-        'lotBy6',
-        'lotBy10',
-        'lotBy12',
-        'lotBy20',
-        'lotBy30',
-        'lotBy50'
-    ];
+    let lotFields = [];
     const items = determineLots(await Item.find(), lotFields);
+    process.exit(0);
     
     const xls = json2xls(items, {
         fields: ['url', 'designation', 'reference', 'barcode', 'brand', 'currentPrice', 'priceBefore'].concat(lotFields)
