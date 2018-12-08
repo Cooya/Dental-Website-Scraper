@@ -1,5 +1,5 @@
 {
-  "name": "dental-websites-scraper",
+  "name": "dental-website-scraper",
   "version": "0.0.1",
   "description": "Web scraper for dental websites",
   "main": "main.js",
@@ -16,12 +16,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Cooya/Commercial-Site-Scraper.git"
+    "url": "git+https://github.com/Cooya/Dental-Website-Scraper"
   },
   "author": "Coya",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Cooya/Commercial-Site-Scraper/issues"
+    "url": "https://github.com/Cooya/Dental-Website-Scraper/issues"
   },
-  "homepage": "https://github.com/Cooya/Commercial-Site-Scraper#readme"
+  "homepage": "https://github.com/Cooya/Dental-Website-Scraper#readme"
 }
