@@ -1,9 +1,15 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const parseString = require('xml2js').parseString;
 const querystring = require('querystring');
+const util = require('util');
+
+const BASE_URL = 'https://www.megadental.fr';
+
+const parseXML = util.promisify(parseString);
 
 async function request(method, url, options = {}) {
-	console.log('Request to %s...', url);
+	console.log('Request to "%s"...', url);
 	let i = 0;
 	let res;
 	while(++i) {
@@ -57,9 +63,30 @@ function resolveUrl(base, url) {
 	return base + url;
 }
 
+async function requestArticleToBoutique(articleId, route, last = null) {
+	const str = route.filter((val) => !!val).join('|') + '|';
+	let endpoint = BASE_URL + '/boutique/lib.tpl.php?art=' + articleId + '&str=' + str + (last ? '&last=' + last : '');
+	console.log('Request to "%s"...', endpoint);
+	endpoint = BASE_URL + '/boutique/lib.tpl.php?art=' + articleId + '&str=' + querystring.escape(str) + (last ? '&last=' + last : '');
+	const res = await axios.get(endpoint);
+	const json = await parseXML(res.data, { explicitArray: false });
+	if(!json.article)
+		throw new Error('No article returned.');
+	return json.article;
+}
+
+async function asyncForEach(array, callback) {
+	const arr = [];
+	for (let i = 0; i < array.length; i++)
+		arr.push(callback(array[i], i, array));
+	return Promise.all(arr);
+}
+
 module.exports = {
 	get: request.bind(null, 'get'),
 	post: request.bind(null, 'post'),
 	getLinks,
-	resolveUrl
+	resolveUrl,
+	requestArticleToBoutique,
+	asyncForEach
 };

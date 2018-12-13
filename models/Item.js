@@ -13,26 +13,76 @@ const ItemSchema = new mongoose.Schema({
 	url: {
 		type: String,
 		required: true,
-		unique: true
+		//unique: true
 	},
-	data: mongoose.Schema.Types.Mixed
+	designation: {
+		type: String,
+		required: true
+	},
+	reference: {
+		type: String,
+		required: true
+	},
+	presentation: {
+		type: String,
+		required: true
+	},
+	size: {
+		type: String,
+		required: false
+	},
+	color: {
+		type: String,
+		required: false
+	},
+	type: {
+		type: String,
+		required: false
+	},
+	description: {
+		type: String,
+		required: false // 	sometimes there is no description...
+	},
+	brand: {
+		type: String,
+		required: false // sometimes there is no brand...
+	},
+	price: {
+		type: Number,
+		required: true,
+	},
+	discountPrice: {
+		type: Number,
+		required: false,
+		validate: {
+			validator: function (v) {
+				return v == null || this.price >= v;
+			},
+			message: 'The price is not superior or equal to the discount price.'
+		},
+	}
 });
 
 ItemSchema.pre('validate', function (next) {
 	const docKeys = Object.keys(this.toObject()); // new Object(this) is not working
 	for (let schemaKey in ItemSchema.obj)
 		if (!docKeys.includes(schemaKey))
-			return next(new Error('"' + schemaKey + '" key is required.'));
+			throw new Error('"' + schemaKey + '" key is required.');
 	next();
 });
 
-ItemSchema.statics.create = async (itemData) => {
+ItemSchema.post('save', function (doc, next) {
+	console.log('Item "%s" has been saved.', doc.url);
+	next();
+});
+
+ItemSchema.statics.newItem = async function (itemData) {
+	console.debug(itemData);
+
 	try {
-		const item = new Item(itemData);
-		await item.validate();
-		await item.save();
+		const item = new this(itemData);
+		await item.save(); // this validates as well
 		console.log('Item saved in database.');
-		console.debug(itemData);
 	}
 	catch (e) {
 		if (e.message.indexOf('E11000 duplicate key error collection') != -1) {
@@ -45,12 +95,9 @@ ItemSchema.statics.create = async (itemData) => {
 	}
 };
 
-ItemSchema.statics.saveAllIntoFile = async function(outputFile) {
+ItemSchema.statics.saveAllIntoFile = async function (outputFile) {
 	const xls = json2xls(await this.find());
 	await writeFile(outputFile, xls, 'binary');
 }
 
-module.exports = (dataSchema) => {
-	ItemSchema.data = new mongoose.Schema(dataSchema);
-	return mongoose.model('Item', ItemSchema);
-};
+module.exports = mongoose.model('Item', ItemSchema);
