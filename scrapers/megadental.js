@@ -78,11 +78,14 @@ module.exports = class MegaRental {
 	async retrieveAllItems() {
 		const itemLinks = await Link.find({ type: 'item', processed: false });
 		console.log('%s item links to process.', itemLinks.length);
+		let itemsCounter;
 		let i = 0;
 		for (let itemLink of itemLinks) {
-			await this.retrieveItem(itemLink.url);
+			itemsCounter = await this.retrieveItem(itemLink.url);
+			if(itemsCounter == 0)
+				throw new Error('No article retrieved for the item "' + itemLink.url + '".')
 			await itemLink.markAsProcessed();
-			console.log('%s item links processed, %s remaining.', ++i, itemLinks.length);
+			console.log('%s/%s item links processed.', ++i, itemLinks.length);
 			sleep(3000);
 		}
 		console.log('All item links have been processed.');
@@ -90,17 +93,27 @@ module.exports = class MegaRental {
 	}
 
 	async retrieveItem(itemUrl) {
-		const $ = await utils.get(itemUrl);
-		if (!$) {
-			console.error('404 error for url "%s".', itemUrl);
-			return;
+		let itemsCounter = 0;
+
+		let $;
+		let articleId;
+		let i = 0;
+		while(true) {
+			$ = await utils.get(itemUrl);
+			if (!$) // error 404
+				return;
+
+			articleId = $('input[name="idArticle"]').val();
+			if (articleId)
+				break;
+
+			if(++i == 5)
+				throw new Error('Cannot get the article ID...');
+			else
+				console.warn('Cannot get the article ID...');
 		}
 
-		const articleId = $('input[name="idArticle"]').val();
-		if (!articleId)
-			throw new Error('The article ID has not been found.');
-
-		const designation = $('h1 > a').attr('title');
+		const designation = $('h1 > a').text();
 		const description = $('div.description').text().trim() || null;
 		const brand = $('div.marque > img').attr('alt') || null;
 		const reference = $('div.reference > span').text();
@@ -110,7 +123,7 @@ module.exports = class MegaRental {
 
 			const routes = [];
 			await determineNextRoutes(articleId, routes, firstRoute);
-			console.debug(routes);
+			//console.debug(routes);
 
 			for (let route of routes) {
 				const dynamicData = await requestDynamicData(articleId, route);
@@ -130,6 +143,7 @@ module.exports = class MegaRental {
 						price: dynamicData.price,
 						discountPrice: dynamicData.discountPrice
 					});
+					itemsCounter++;
 				}
 				sleep(3000);
 			}
@@ -153,8 +167,11 @@ module.exports = class MegaRental {
 				price: /([0-9.]+)€/.exec(price)[1],
 				discountPrice: discountPrice ? /([0-9.]+)€/.exec(discountPrice)[1] : null
 			});
+			itemsCounter++;
 			sleep(3000);
 		}
+
+		return itemsCounter;
 	}
 };
 
@@ -162,14 +179,17 @@ function getFirstRoute($, articleId) {
 	const route = [];
 	for (let i = 0; i < 4; ++i) {
 		const formGroup = $('#select' + i + '_' + articleId);
-		if (!formGroup.length)
-			throw new Error('A form group has not been found...');
-
-		let text = $(formGroup).find('p.form-control-static');
-		if (text.length)
-			route.push($(text).text());
-		else
-			route.push($(formGroup).find('option').length ? 'javascript:void(0)' : null);
+		if (!formGroup.length) {
+			console.error('A form group has not been found...');
+			route.push(null);
+		}
+		else {
+			let text = $(formGroup).find('input').attr('value');
+			if (text)
+				route.push(text);
+			else
+				route.push($(formGroup).find('option').length ? 'javascript:void(0)' : null);
+		}
 	}
 	return route;
 }
@@ -186,7 +206,7 @@ async function determineNextRoutes(articleId, routesArray, route) {
 			return;
 		}
 	}
-	console.debug('Route complete.');
+	//console.debug('Route complete.');
 	routesArray.push(route);
 }
 
@@ -218,10 +238,14 @@ async function requestDynamicData(articleId, route) {
 		return null;
 	}
 
+	//console.debug(article);
+	let price = article.prix_public.trim() || article.prix.trim();
+	let discountPrice = article.prix_public.trim() && article.prix.trim();
+
 	return {
 		reference: article.reference.trim(),
-		price: /([0-9.]+)€/.exec(article.prix_public)[1],
-		discountPrice: /([0-9.]+)€/.exec(article.prix)[1]
+		price: /([0-9.]+)€/.exec(price)[1],
+		discountPrice: discountPrice ? /([0-9.]+)€/.exec(discountPrice)[1] : null
 	};
 }
 
