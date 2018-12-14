@@ -11,6 +11,13 @@ const ORIGIN = 'megadental';
 
 const resolveUrl = utils.resolveUrl.bind(null, BASE_URL);
 
+const ignoredItems = [
+	'https://www.megadental.fr/la-cfao/initial-iq-lustre-pastes-nf-accessoires.html',
+	'https://www.megadental.fr/la-cfao/pates-pour-initial-iq-lustre-pastes-nf.html',
+	'https://www.megadental.fr/la-cfao/pinceaux-kolinsky.html',
+	'https://www.megadental.fr/la-cfao/teintier-ivoclar-vivadent.html'
+];
+
 module.exports = class MegaRental {
 	async analyseSiteMap() {
 		const $ = await utils.get(SITE_MAP_URL);
@@ -82,11 +89,11 @@ module.exports = class MegaRental {
 		let i = 0;
 		for (let itemLink of itemLinks) {
 			itemsCounter = await this.retrieveItem(itemLink.url);
-			if(itemsCounter == 0)
-				throw new Error('No article retrieved for the item "' + itemLink.url + '".')
+			if(itemsCounter == 0 && ignoredItems.indexOf(itemLink.url) == -1)
+				console.error('No article retrieved for the item "' + itemLink.url + '".');
 			await itemLink.markAsProcessed();
 			console.log('%s/%s item links processed.', ++i, itemLinks.length);
-			sleep(3000);
+			//sleep(3000);
 		}
 		console.log('All item links have been processed.');
 		console.log('%s item are in database.', await Item.find().countDocuments());
@@ -125,7 +132,7 @@ module.exports = class MegaRental {
 			await determineNextRoutes(articleId, routes, firstRoute);
 			//console.debug(routes);
 
-			for (let route of routes) {
+			const retrieveArticle = async (route) => {
 				const dynamicData = await requestDynamicData(articleId, route);
 				//console.debug(dynamicData);
 				if (dynamicData) {
@@ -145,8 +152,9 @@ module.exports = class MegaRental {
 					});
 					itemsCounter++;
 				}
-				sleep(3000);
 			}
+
+			await utils.asyncForEach(routes, retrieveArticle);
 		}
 		else {
 			let price = $('div.prix-public').text() || $('div.prix').text();
@@ -168,7 +176,7 @@ module.exports = class MegaRental {
 				discountPrice: discountPrice ? /([0-9.]+)€/.exec(discountPrice)[1] : null
 			});
 			itemsCounter++;
-			sleep(3000);
+			//sleep(3000);
 		}
 
 		return itemsCounter;
@@ -180,7 +188,7 @@ function getFirstRoute($, articleId) {
 	for (let i = 0; i < 4; ++i) {
 		const formGroup = $('#select' + i + '_' + articleId);
 		if (!formGroup.length) {
-			console.error('A form group has not been found...');
+			console.warn('A form group has not been found...');
 			route.push(null);
 		}
 		else {
@@ -212,12 +220,16 @@ async function determineNextRoutes(articleId, routesArray, route) {
 
 async function requestPossibilities(articleId, route, i) {
 	const article = await utils.requestArticleToBoutique(articleId, route, i > 0 ? i - 1 : null);
-	const $ = cheerio.load(article.selected.tab[i]._);
+	const $ = cheerio.load((article.selected.tab.length && article.selected.tab[i]._) || article.selected.tab._);
 
-	const options = $('select:enabled > option:enabled');
+	let options = $('select:enabled > option:enabled');
 	if(!options.length) {
-		console.error(route, i);
-		throw new Error('No option found at this index.');
+		options = [$('p.form-control-static input').val()];
+		if(!options[0]) {
+			console.error(route, i);
+			throw new Error('No option found at this index.');
+		}
+		return options;
 	}
 
 	const possibilities = [];

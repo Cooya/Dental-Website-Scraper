@@ -2,6 +2,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const parseString = require('xml2js').parseString;
 const querystring = require('querystring');
+const sleep = require('system-sleep');
 const util = require('util');
 
 const BASE_URL = 'https://www.megadental.fr';
@@ -26,10 +27,13 @@ async function request(method, url, options = {}) {
 			break;
 		}
 		catch(e) {
-			if(e.code == 'ENOTFOUND' && i < 5);
+			if(e.code == 'ENOTFOUND' && i < 5) {
+				console.warn('Server unreachable, trying again in 3 seconds...');
+				sleep(3000);
+			}
 			else if(e.message == 'Request failed with status code 404') {
 				console.error('The server has returned 404 for url "%s".', url);
-				return null;
+				return 404;
 			}
 			else throw e;
 		}
@@ -38,7 +42,27 @@ async function request(method, url, options = {}) {
 	if(res.status != 200)
 		throw new Error('Bad response, status code = ' + res.status);
 
-	return cheerio.load(res.data);
+	return res.data;
+}
+
+async function requestPage(method, url, options = {}) {
+	const data = await request(method, url, options);
+	if(data == 404)
+		return null;
+	if(data.length == 0) { // sometimes it appears that the response body is empty (https://www.megadental.fr/adhesifs/sdr-prime-bond-active.html)
+		console.error('The server has returned an empty body for url "%s".', url);
+		return null;
+	}
+	return cheerio.load(data);
+}
+
+async function requestArticleToBoutique(articleId, route, last = null) {
+	const str = route.filter((val) => !!val).join('|') + '|';
+	const data = await request('get', BASE_URL + '/boutique/lib.tpl.php?art=' + articleId + '&str=' + querystring.escape(str) + (last ? '&last=' + last : ''));
+	const json = await parseXML(data, { explicitArray: false });
+	if(!json.article)
+		throw new Error('No article returned.');
+	return json.article;
 }
 
 function getLinks($, selector) {
@@ -63,18 +87,6 @@ function resolveUrl(base, url) {
 	return base + url;
 }
 
-async function requestArticleToBoutique(articleId, route, last = null) {
-	const str = route.filter((val) => !!val).join('|') + '|';
-	let endpoint = BASE_URL + '/boutique/lib.tpl.php?art=' + articleId + '&str=' + str + (last ? '&last=' + last : '');
-	console.log('Request to "%s"...', endpoint);
-	endpoint = BASE_URL + '/boutique/lib.tpl.php?art=' + articleId + '&str=' + querystring.escape(str) + (last ? '&last=' + last : '');
-	const res = await axios.get(endpoint);
-	const json = await parseXML(res.data, { explicitArray: false });
-	if(!json.article)
-		throw new Error('No article returned.');
-	return json.article;
-}
-
 async function asyncForEach(array, callback) {
 	const arr = [];
 	for (let i = 0; i < array.length; i++)
@@ -83,8 +95,8 @@ async function asyncForEach(array, callback) {
 }
 
 module.exports = {
-	get: request.bind(null, 'get'),
-	post: request.bind(null, 'post'),
+	get: requestPage.bind(null, 'get'),
+	post: requestPage.bind(null, 'post'),
 	getLinks,
 	resolveUrl,
 	requestArticleToBoutique,

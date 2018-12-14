@@ -21,7 +21,8 @@ const ItemSchema = new mongoose.Schema({
 	},
 	reference: {
 		type: String,
-		required: true
+		required: true,
+		unique: true
 	},
 	presentation: {
 		type: String,
@@ -54,12 +55,12 @@ const ItemSchema = new mongoose.Schema({
 	discountPrice: {
 		type: Number,
 		required: false,
-		validate: {
-			validator: function (v) {
-				return v == null || this.price >= v;
-			},
-			message: 'The price is not superior or equal to the discount price.'
-		},
+		// validate: {
+		// 	validator: function (v) {
+		// 		return v == null || this.price >= v;
+		// 	},
+		// 	message: 'The price is not superior or equal to the discount price.'
+		// },
 	}
 });
 
@@ -85,19 +86,24 @@ ItemSchema.statics.newItem = async function (itemData) {
 		console.log('Item saved in database.');
 	}
 	catch (e) {
-		if (e.message.indexOf('E11000 duplicate key error collection') != -1) {
-			console.error('Item already processed...');
-			return;
-		}
+		// if (e.message.indexOf('E11000 duplicate key error collection') != -1) {
+		// 	console.error('Item already processed...');
+		// 	return;
+		// }
 
-		console.error(e);
-		process.exit(1);
+		throw e;
 	}
 };
 
 ItemSchema.statics.saveAllIntoFile = async function (outputFile) {
-	const xls = json2xls(await this.find());
+	const items = await this.find();
+	for(let i = 0; i < items.length; ++i)
+		items[i] = items[i]._doc;
+	const xls = json2xls(items, {
+		fields: ['url', 'designation', 'reference', 'presentation', 'size', 'color', 'type', 'description', 'brand', 'price', 'discountPrice']
+	});
 	await writeFile(outputFile, xls, 'binary');
+	console.log('All items have been saved into the output file.');
 }
 
 module.exports = mongoose.model('Item', ItemSchema);
