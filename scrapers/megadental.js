@@ -1,7 +1,7 @@
 const cheerio = require('cheerio');
 const sleep = require('system-sleep');
 
-const Item = require('../models/Item');
+const Item = require('../models/MegaDentalItem');
 const Link = require('../models/Link');
 const utils = require('../utils');
 
@@ -24,11 +24,11 @@ module.exports = class MegaRental {
 		const links = utils.getLinks($, 'div.row li a');
 		for (let link of links) {
 			link = resolveUrl(link);
-			if (link.match(/https\:\/\/www\.megadental\.fr\/[a-z0-9-]+\/[a-z0-9-]+\.html/)) {
+			if (link.match(/https:\/\/www\.megadental\.fr\/[a-z0-9-]+\/[a-z0-9-]+\.html/)) {
 				link = new Link({ origin: ORIGIN, type: 'item', url: link });
 				await link.customSave();
 			}
-			else if (link.match(/https\:\/\/www\.megadental\.fr\/[a-z0-9-]+\.html/)) {
+			else if (link.match(/https:\/\/www\.megadental\.fr\/[a-z0-9-]+\.html/)) {
 				link = new Link({ origin: ORIGIN, type: 'category', url: link });
 				await link.customSave();
 			}
@@ -72,7 +72,7 @@ module.exports = class MegaRental {
 		for (let itemLink of itemLinks) {
 			itemLink = new Link({ origin: ORIGIN, type: 'item', url: resolveUrl(itemLink) });
 			await itemLink.customSave();
-		};
+		}
 
 		const nextPageButton = $('ul.pagination li:last-child:not(.disabled)');
 		if (nextPageButton.length) { // if next page exists, we process it
@@ -152,7 +152,7 @@ module.exports = class MegaRental {
 					});
 					itemsCounter++;
 				}
-			}
+			};
 
 			await utils.asyncForEach(routes, retrieveArticle);
 		}

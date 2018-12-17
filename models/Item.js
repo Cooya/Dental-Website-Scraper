@@ -5,105 +5,58 @@ const util = require('util');
 
 const writeFile = util.promisify(fs.writeFile);
 
-const ItemSchema = new mongoose.Schema({
-	origin: {
-		type: String,
-		required: true
-	},
-	url: {
-		type: String,
-		required: true,
-		//unique: true
-	},
-	designation: {
-		type: String,
-		required: true
-	},
-	reference: {
-		type: String,
-		required: true,
-		unique: true
-	},
-	presentation: {
-		type: String,
-		required: true
-	},
-	size: {
-		type: String,
-		required: false
-	},
-	color: {
-		type: String,
-		required: false
-	},
-	type: {
-		type: String,
-		required: false
-	},
-	description: {
-		type: String,
-		required: false // 	sometimes there is no description...
-	},
-	brand: {
-		type: String,
-		required: false // sometimes there is no brand...
-	},
-	price: {
-		type: Number,
-		required: true,
-	},
-	discountPrice: {
-		type: Number,
-		required: false,
-		// validate: {
-		// 	validator: function (v) {
-		// 		return v == null || this.price >= v;
-		// 	},
-		// 	message: 'The price is not superior or equal to the discount price.'
-		// },
-	}
-});
+module.exports = (dynamicSchema, fieldsToSave) => {
+	const ItemSchema = new mongoose.Schema(Object.assign({
+		origin: {
+			type: String,
+			required: true
+		},
+		url: {
+			type: String,
+			required: true,
+			//unique: true
+		}
+	}, dynamicSchema));
 
-ItemSchema.pre('validate', function (next) {
-	const docKeys = Object.keys(this.toObject()); // new Object(this) is not working
-	for (let schemaKey in ItemSchema.obj)
-		if (!docKeys.includes(schemaKey))
-			throw new Error('"' + schemaKey + '" key is required.');
-	next();
-});
-
-ItemSchema.post('save', function (doc, next) {
-	console.log('Item "%s" has been saved.', doc.url);
-	next();
-});
-
-ItemSchema.statics.newItem = async function (itemData) {
-	console.debug(itemData);
-
-	try {
-		const item = new this(itemData);
-		await item.save(); // this validates as well
-		console.log('Item saved in database.');
-	}
-	catch (e) {
-		// if (e.message.indexOf('E11000 duplicate key error collection') != -1) {
-		// 	console.error('Item already processed...');
-		// 	return;
-		// }
-
-		throw e;
-	}
-};
-
-ItemSchema.statics.saveAllIntoFile = async function (outputFile) {
-	const items = await this.find();
-	for(let i = 0; i < items.length; ++i)
-		items[i] = items[i]._doc;
-	const xls = json2xls(items, {
-		fields: ['url', 'designation', 'reference', 'presentation', 'size', 'color', 'type', 'description', 'brand', 'price', 'discountPrice']
+	ItemSchema.pre('validate', function (next) {
+		const docKeys = Object.keys(this.toObject()); // new Object(this) is not working
+		for (let schemaKey in ItemSchema.obj)
+			if (!docKeys.includes(schemaKey))
+				throw new Error('"' + schemaKey + '" key is required.');
+		next();
 	});
-	await writeFile(outputFile, xls, 'binary');
-	console.log('All items have been saved into the output file.');
-}
+	
+	ItemSchema.post('save', (doc, next) => {
+		console.log('Item "%s" has been saved.', doc.url);
+		next();
+	});
+	
+	ItemSchema.statics.newItem = async function (itemData) {
+		console.debug(itemData);
+	
+		try {
+			const item = new this(itemData);
+			await item.save(); // this validates as well
+			console.log('Item saved in database.');
+		}
+		catch (e) {
+			if (e.message.indexOf('E11000 duplicate key error collection') != -1) {
+				console.error('Item already processed...');
+				return;
+			}
+	
+			throw e;
+		}
+	};
 
-module.exports = mongoose.model('Item', ItemSchema);
+	ItemSchema.statics.saveItemsIntoFile = async function (outputFile) {
+		const items = await this.find();
+		for(let i = 0; i < items.length; ++i)
+			items[i] = items[i]._doc;
+		const xls = json2xls(items, {fields: fieldsToSave});
+		await writeFile(outputFile, xls, 'binary');
+		console.log('All items have been saved into the output file.');
+	};
+
+	return mongoose.model('Item', ItemSchema);
+};
