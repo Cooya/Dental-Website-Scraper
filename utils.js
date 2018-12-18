@@ -4,6 +4,7 @@ const parseString = require('xml2js').parseString;
 const querystring = require('querystring');
 const sleep = require('system-sleep');
 const util = require('util');
+const iconv = require('iconv-lite');
 
 const BASE_URL = 'https://www.megadental.fr';
 
@@ -20,9 +21,10 @@ async function request(method, url, options = {}) {
 				url,
 				params: options.params,
 				data: options.body && querystring.stringify(options.body), // application/x-www-form-urlencoded by default
-				headers: {
+				responseType: options.encoding ? 'arraybuffer' : 'text',
+				headers: Object.assign({
 					'Content-Type': 'application/x-www-form-urlencoded'
-				}
+				}, options.headers)
 			});
 			break;
 		}
@@ -42,7 +44,7 @@ async function request(method, url, options = {}) {
 	if(res.status != 200)
 		throw new Error('Bad response, status code = ' + res.status);
 
-	return res.data;
+	return options.encoding ? iconv.decode(res.data, options.encoding) : res.data;
 }
 
 async function requestPage(method, url, options = {}) {
@@ -53,6 +55,7 @@ async function requestPage(method, url, options = {}) {
 		console.error('The server has returned an empty body for url "%s".', url);
 		return null;
 	}
+	//console.debug(data);
 	return cheerio.load(data);
 }
 
@@ -87,11 +90,23 @@ function resolveUrl(base, url) {
 	return base + url;
 }
 
-async function asyncForEach(array, callback) {
-	const arr = [];
-	for (let i = 0; i < array.length; i++)
-		arr.push(callback(array[i], i, array));
-	return Promise.all(arr);
+async function asyncForEach(array, callback, maxSimultaneous = 0) {
+	if(maxSimultaneous == 0) {
+		const arr = [];
+		for (let i = 0; i < array.length; i++)
+			arr.push(callback(array[i], i, array));
+		return Promise.all(arr);
+	}
+	else {
+		let i = 0;
+		let arr;
+		while(i < array.length) {
+			arr = [];
+			for(let j = 0; j < maxSimultaneous && i < array.length; ++j, ++i)
+				arr.push(callback(array[i], i, array));
+			await Promise.all(arr);
+		}
+	}
 }
 
 module.exports = {

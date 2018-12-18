@@ -2,8 +2,8 @@ require('./logs');
 const mongoose = require('mongoose');
 
 const config = require('./config');
-const Scraper = require('./scrapers/' + config.origin + '.js');
-const Item = require('./models/MegaDentalItem');
+const Scraper = require('./scrapers/' + config.origin);
+const Item = require('./models/' + config.origin + 'Item');
 
 (async function main() {
 	try {
@@ -15,7 +15,7 @@ const Item = require('./models/MegaDentalItem');
 		await scraper.retrieveAllItemLinks();
 		await scraper.retrieveAllItems();
 
-		await Item.saveItemsIntoFile(config.outputFile);
+		await Item.saveItemsIntoFile(config.origin, config.outputFile);
 		await mongoose.disconnect();
 	}
 	catch (e) {

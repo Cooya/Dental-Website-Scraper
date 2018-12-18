@@ -49,9 +49,9 @@ module.exports = (dynamicSchema, fieldsToSave) => {
 		}
 	};
 
-	ItemSchema.statics.saveItemsIntoFile = async function (outputFile) {
-		const items = await this.find();
-		for(let i = 0; i < items.length; ++i)
+	ItemSchema.statics.saveItemsIntoFile = async function (origin, outputFile) {
+		const items = await this.find({origin});
+		for(let i = 0; i < 100; ++i)
 			items[i] = items[i]._doc;
 		const xls = json2xls(items, {fields: fieldsToSave});
 		await writeFile(outputFile, xls, 'binary');
