@@ -46,4 +46,4 @@ module.exports = require('./Item')({
 		// 	message: 'The price is not superior or equal to the discount price.'
 		// },
 	}
-}, ['url', 'designation', 'reference', 'presentation', 'size', 'color', 'type', 'description', 'brand', 'price', 'discountPrice']);
+});

@@ -1,7 +1,7 @@
 require('./logs');
 const mongoose = require('mongoose');
 
-const config = require('./config');
+const config = require('../config');
 const Scraper = require('./scrapers/' + config.origin);
 const Item = require('./models/' + config.origin + 'Item');
 

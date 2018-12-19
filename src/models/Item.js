@@ -5,7 +5,9 @@ const util = require('util');
 
 const writeFile = util.promisify(fs.writeFile);
 
-module.exports = (dynamicSchema, fieldsToSave) => {
+module.exports = (dynamicSchema) => {
+	const fieldsToSave = ['url'].concat(Object.keys(dynamicSchema));
+	
 	const ItemSchema = new mongoose.Schema(Object.assign({
 		origin: {
 			type: String,

@@ -59,4 +59,4 @@ const schema = {
 	}
 };
 
-module.exports = require('./Item')(schema, ['url'].concat(Object.keys(schema)));
+module.exports = require('./Item')(schema);
