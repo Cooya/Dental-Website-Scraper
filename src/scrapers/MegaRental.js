@@ -48,7 +48,7 @@ module.exports = class MegaRental {
 		//await this.analyseSiteMap();
 
 		console.log('All category links have been retrieved.');
-		console.log('%s category links are in database.', await Link.find({ type: 'category' }).countDocuments());
+		console.log('%s category links are in database.', await Link.find({ origin: ORIGIN, type: 'category' }).countDocuments());
 	}
 
 	async retrieveAllItemLinks() {
