@@ -72,7 +72,7 @@ module.exports = class HenrySchein {
 			const pricesSplit = prices.split('  ');
 			//console.debug(pricesSplit);
 			for(let price of pricesSplit) {
-				if(price.indexOf('x') == -1) {
+				if(price.indexOf('x') == -1) { // no price by lot
 					pricesByLot.push({
 						soldBy: 1,
 						commonPrice: crossedPrice ? crossedPrice : price,
@@ -80,8 +80,8 @@ module.exports = class HenrySchein {
 					});
 				}
 				else {
-					const values = /x([0-9]+) ([0-9]+,[0-9]+)/.exec(price);
-					pricesByLot.push({soldBy: values[1], commonPrice: null, discountPrice: values[2]});
+					const values = /x([0-9]+) ([0-9 ]+,[0-9]+)/.exec(price);
+					pricesByLot.push({soldBy: values[1], commonPrice: values[2], discountPrice: null});
 				}
 			}
 		}
@@ -103,10 +103,14 @@ module.exports = class HenrySchein {
 				brand: subtitlePart2[0].trim(),
 				providerRef: providerRef != '.' ? providerRef : null,
 				soldBy: priceByLot.soldBy,
-				commonPrice: priceByLot.commonPrice && /[0-9]+,[0-9]+/.exec(priceByLot.commonPrice)[0].replace(',', '.'),
-				discountPrice: priceByLot.discountPrice && /[0-9]+,[0-9]+/.exec(priceByLot.discountPrice)[0].replace(',', '.')
+				commonPrice: priceByLot.commonPrice && extractPriceAsNumber(priceByLot.commonPrice),
+				discountPrice: priceByLot.discountPrice && extractPriceAsNumber(priceByLot.discountPrice)
 			};
 			await Item.newItem(itemData);
 		}
 	}
 };
+
+function extractPriceAsNumber(price) {
+	return /[0-9 ]+,[0-9]+/.exec(price)[0].replace(',', '.');
+}
