@@ -1,5 +1,7 @@
+const assert = require('assert');
 const Item = require('../models/HenryScheinItem');
 const Link = require('../models/Link');
+const Scraper = require('./Scraper');
 const utils = require('../utils');
 
 const BASE_URL = 'https://www.henryschein.fr';
@@ -10,7 +12,7 @@ const LAST_PROCESSED_PAGE = 1136;
 
 const resolveUrl = utils.resolveUrl.bind(null, BASE_URL);
 
-module.exports = class HenrySchein {
+module.exports = class HenrySchein extends Scraper {
 
 	async retrieveAllCategoryLinks() {
 		console.log('No category link to fetch.');
@@ -34,20 +36,8 @@ module.exports = class HenrySchein {
 		console.log('%s item links are in database.', await Link.find({ type: 'item', origin: ORIGIN }).countDocuments());
 	}
 
-	async retrieveAllItems() {
-		const itemLinks = await Link.find({ type: 'item', origin: ORIGIN, processed: false });
-		console.log('%s item links to process.', itemLinks.length);
-		let i = 0;
-		await utils.asyncForEach(itemLinks, async (itemLink) => {
-			await this.retrieveItem(itemLink.url);
-			await itemLink.markAsProcessed();
-			console.log('%s/%s item links processed.', ++i, itemLinks.length);
-		}, 10);
-		console.log('All item links have been processed.');
-		console.log('%s item are in database.', await Item.find({origin: ORIGIN}).countDocuments());
-	}
-
 	async retrieveItem(itemUrl) {
+		let counter = 0;
 		const $ = await utils.get(itemUrl, {headers: {'Cookie': COOKIES}, encoding: 'iso-8859-15'});
 
 		if($('article h1').text().trim() == 'Ce produit est introuvable. Il n\'existe plus dans le catalogue actuel.') {
@@ -87,7 +77,6 @@ module.exports = class HenrySchein {
 		}
 
 		for(let priceByLot of pricesByLot) {
-			//console.debug(priceByLot);
 			const itemData = {
 				origin: ORIGIN,
 				url: itemUrl,
@@ -103,14 +92,20 @@ module.exports = class HenrySchein {
 				brand: subtitlePart2[0].trim(),
 				providerRef: providerRef != '.' ? providerRef : null,
 				soldBy: priceByLot.soldBy,
-				commonPrice: priceByLot.commonPrice && extractPriceAsNumber(priceByLot.commonPrice),
-				discountPrice: priceByLot.discountPrice && extractPriceAsNumber(priceByLot.discountPrice)
+				commonPrice: priceByLot.commonPrice ? extractPriceAsNumber(priceByLot.commonPrice) : null,
+				discountPrice: priceByLot.discountPrice ? extractPriceAsNumber(priceByLot.discountPrice) : null
 			};
 			await Item.newItem(itemData);
+			counter++;
 		}
+
+		return counter;
 	}
 };
 
 function extractPriceAsNumber(price) {
-	return /[0-9 ]+,[0-9]+/.exec(price)[0].replace(',', '.');
+	price = /[0-9\s]+[,|.][0-9]+/.exec(price)[0].replace(/,/g, '.').replace(/\s/g, '');
+	return parseFloat(price);
 }
+
+assert.equal(extractPriceAsNumber('3 641,49 €'), 3641.49);

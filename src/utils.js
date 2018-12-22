@@ -109,11 +109,25 @@ async function asyncForEach(array, callback, maxSimultaneous = 0) {
 	}
 }
 
+async function asyncThreads(array, callback, threadsNumber = 10) {
+	let arrIndex = 0;
+	const fct = async () => {
+		while(arrIndex < array.length)
+			await callback(array[arrIndex], arrIndex++, array);
+	};
+
+	let arr = [];
+	for(let i = 0; i < threadsNumber; ++i)
+		arr.push(fct());
+	await Promise.all(arr);
+}
+
 module.exports = {
 	get: requestPage.bind(null, 'get'),
 	post: requestPage.bind(null, 'post'),
 	getLinks,
 	resolveUrl,
 	requestArticleToBoutique,
-	asyncForEach
+	asyncForEach,
+	asyncThreads
 };

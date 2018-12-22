@@ -3,19 +3,17 @@ const mongoose = require('mongoose');
 
 const config = require('../config');
 const Scraper = require('./scrapers/' + config.origin);
-const Item = require('./models/' + config.origin + 'Item');
 
 (async function main() {
 	try {
 		await mongoose.connect(config.dbUrl, { useCreateIndex: true, useNewUrlParser: true });
 
-		const scraper = new Scraper();
-
+		const scraper = new Scraper(config.origin);
 		await scraper.retrieveAllCategoryLinks();
 		await scraper.retrieveAllItemLinks();
 		await scraper.retrieveAllItems();
+		await scraper.saveItemsIntoFile(config.origin, config.outputFile);
 
-		await Item.saveItemsIntoFile(config.origin, config.outputFile);
 		await mongoose.disconnect();
 	}
 	catch (e) {

@@ -1,13 +1,6 @@
-const fs = require('fs');
-const json2xls = require('json2xls');
 const mongoose = require('mongoose');
-const util = require('util');
-
-const writeFile = util.promisify(fs.writeFile);
 
 module.exports = (dynamicSchema) => {
-	const fieldsToSave = ['url'].concat(Object.keys(dynamicSchema));
-	
 	const ItemSchema = new mongoose.Schema(Object.assign({
 		origin: {
 			type: String,
@@ -39,7 +32,6 @@ module.exports = (dynamicSchema) => {
 		try {
 			const item = new this(itemData);
 			await item.save(); // this validates as well
-			console.log('Item saved in database.');
 		}
 		catch (e) {
 			if (e.message.indexOf('E11000 duplicate key error collection') != -1) {
@@ -51,13 +43,8 @@ module.exports = (dynamicSchema) => {
 		}
 	};
 
-	ItemSchema.statics.saveItemsIntoFile = async function (origin, outputFile) {
-		const items = await this.find({origin});
-		for(let i = 0; i < 100; ++i)
-			items[i] = items[i]._doc;
-		const xls = json2xls(items, {fields: fieldsToSave});
-		await writeFile(outputFile, xls, 'binary');
-		console.log('All items have been saved into the output file.');
+	ItemSchema.statics.getDynamicKeys = function () {
+		return Object.keys(dynamicSchema);
 	};
 
 	return mongoose.model('Item', ItemSchema);

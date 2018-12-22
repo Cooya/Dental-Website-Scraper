@@ -1,27 +1,43 @@
+function validateString(v) {
+	return /^[\S ]+$/.exec(v);
+}
+
 module.exports = require('./Item')({
 	family: {
 		type: String,
-		required: true
+		required: true,
+		validator: validateString
 	},
-	subfamily: {
+	subFamily: {
 		type: String,
-		required: true
+		required: false,
+		validator: validateString
 	},
 	designation: {
 		type: String,
-		required: true
+		required: true,
+		validator: validateString
 	},
 	strip: {
 		type: String,
-		required: true
+		required: false,
+		validator: validateString
 	},
 	subStrip: {
 		type: String,
-		required: true
+		required: false,
+		validator: validateString
 	},
 	attributesArray: {
 		type: Array,
 		required: true
+	},
+	lastAttr: {
+		type: String,
+		requried: false,
+		validator: [validateString, function(v) {
+			return this.attributesArray.length ? this.attributesArray[this.attributesArray.length - 1] != v : true;
+		}]
 	},
 	ref: {
 		type: Number,
@@ -29,15 +45,17 @@ module.exports = require('./Item')({
 	},
 	ref2: {
 		type: Number,
-		required: true
+		required: false
 	},
 	description: {
 		type: String,
-		required: true
+		required: false,
+		validator: validateString
 	},
 	brand: {
 		type: String,
-		required: true
+		required: false,
+		validate: validateString
 	},
 	lot: {
 		type: Number,
@@ -49,6 +67,6 @@ module.exports = require('./Item')({
 	},
 	discountPrice: {
 		type: Number,
-		required: true
+		required: false
 	}
 });
