@@ -35,9 +35,12 @@ module.exports = require('./Item')({
 	lastAttr: {
 		type: String,
 		requried: false,
-		validator: [validateString, function(v) {
-			return this.attributesArray.length ? this.attributesArray[this.attributesArray.length - 1] != v : true;
-		}]
+		validator: [
+			validateString,
+			function(v) {
+				return this.attributesArray.length ? this.attributesArray[this.attributesArray.length - 1] != v : true;
+			}
+		]
 	},
 	ref: {
 		type: Number,
@@ -63,7 +66,7 @@ module.exports = require('./Item')({
 	},
 	listPrice: {
 		type: Number,
-		required: true
+		required: false
 	},
 	discountPrice: {
 		type: Number,

@@ -173,12 +173,12 @@ module.exports = class PromoDentaire extends Scraper {
 						} else {
 							// price for lot
 							data.lot = priceDescription.match(/Par ([0-9]+),/)[1];
-							data.listPrice = extractPriceAsNumber(
+							data.listPrice = null;
+							data.discountPrice = extractPriceAsNumber(
 								$(priceRow)
 									.find('div:nth-child(' + divsCount + ')')
 									.text()
 							);
-							data.discountPrice = null;
 						}
 					}
 					try {
