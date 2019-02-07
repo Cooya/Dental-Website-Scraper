@@ -6,7 +6,7 @@ module.exports = require('./Item')({
 	reference: {
 		type: String,
 		required: true,
-		unique: true
+		unique: false
 	},
 	presentation: {
 		type: String,
@@ -34,11 +34,11 @@ module.exports = require('./Item')({
 	},
 	price: {
 		type: Number,
-		required: true,
+		required: true
 	},
 	discountPrice: {
 		type: Number,
-		required: false,
+		required: false
 		// validate: {
 		// 	validator: function (v) {
 		// 		return v == null || this.price >= v;
