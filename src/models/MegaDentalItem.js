@@ -6,7 +6,7 @@ module.exports = require('./Item')({
 	reference: {
 		type: String,
 		required: true,
-		unique: false
+		unique: true
 	},
 	presentation: {
 		type: String,
