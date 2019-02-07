@@ -3,7 +3,7 @@ const xlsx = require('xlsx');
 const Link = require('../models/Link');
 const utils = require('../utils');
 
-const PARALLEL_REQUESTS = 20;
+const PARALLEL_REQUESTS = 5;
 
 class Scraper {
 	constructor(origin) {
@@ -35,10 +35,7 @@ class Scraper {
 			PARALLEL_REQUESTS
 		);
 		console.log('All category links have been processed.');
-		console.log(
-			'%s item links are in database.',
-			await Link.find({origin: this.origin, type: 'item'}).countDocuments()
-		);
+		console.log('%s item links are in database.', await Link.find({origin: this.origin, type: 'item'}).countDocuments());
 	}
 
 	async retrieveAllItems() {
@@ -48,8 +45,7 @@ class Scraper {
 		await utils.asyncThreads(
 			itemLinks,
 			async (itemLink) => {
-				if ((await this.retrieveItem(itemLink.url)) == 0)
-					throw new Error('No item has been created for the url "' + itemLink.url + '".');
+				if ((await this.retrieveItem(itemLink.url)) == 0) throw new Error('No item has been created for the url "' + itemLink.url + '".');
 				await itemLink.markAsProcessed();
 				console.log('%s/%s item links processed.', ++i, itemLinks.length);
 			},

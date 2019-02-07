@@ -8,7 +8,8 @@ const utils = require('../utils');
 
 const BASE_URL = 'https://www.megadental.fr';
 const SITE_MAP_URL = 'https://www.megadental.fr/boutique/sitemap.php';
-const ORIGIN = 'megadental';
+const ORIGIN = 'MegaDental';
+const CATEGORY_LINKS_COUNT = 284;
 
 const resolveUrl = utils.resolveUrl.bind(null, BASE_URL);
 
@@ -19,11 +20,10 @@ module.exports = class MegaDental extends Scraper {
 		for (let link of links) {
 			link = resolveUrl(link);
 			if (link.match(/https:\/\/www\.megadental\.fr\/[a-z0-9-]+\/[a-z0-9-]+\.html/)) {
-				link = new Link({ origin: ORIGIN, type: 'item', url: link });
+				link = new Link({origin: ORIGIN, type: 'item', url: link});
 				await link.customSave();
-			}
-			else if (link.match(/https:\/\/www\.megadental\.fr\/[a-z0-9-]+\.html/)) {
-				link = new Link({ origin: ORIGIN, type: 'category', url: link });
+			} else if (link.match(/https:\/\/www\.megadental\.fr\/[a-z0-9-]+\.html/)) {
+				link = new Link({origin: ORIGIN, type: 'category', url: link});
 				await link.customSave();
 			}
 		}
@@ -38,30 +38,37 @@ module.exports = class MegaDental extends Scraper {
 		// 	await categoryLink.customSave();
 		// }
 
-		// better way
-		//await this.analyseSiteMap();
+		// better way (retrieve all category links and all item links)
+		const categoryLinksCount = await Link.countDocuments({origin: ORIGIN, type: 'category'});
+		if (categoryLinksCount < CATEGORY_LINKS_COUNT) await this.analyseSiteMap();
 
 		console.log('All category links have been retrieved.');
-		console.log('%s category links are in database.', await Link.find({ origin: ORIGIN, type: 'category' }).countDocuments());
+		console.log('%s category links are in database.', await Link.find({origin: ORIGIN, type: 'category'}).countDocuments());
 	}
 
 	async retrieveItemLinks(categoryUrl) {
-		const $ = await utils.post(categoryUrl, { body: { nbrParPage: 100 } });
-		if (!$)
-			return;
+		const $ = await utils.post(categoryUrl, {body: {nbrParPage: 100}});
+		if (!$) return;
 
 		const itemLinks = utils.getLinks($, 'a.hover-infos');
 		console.log('%s item links found on the page.', itemLinks.length);
 		for (let itemLink of itemLinks) {
-			itemLink = new Link({ origin: ORIGIN, type: 'item', url: resolveUrl(itemLink) });
+			itemLink = new Link({origin: ORIGIN, type: 'item', url: resolveUrl(itemLink)});
 			await itemLink.customSave();
 		}
 
 		const nextPageButton = $('ul.pagination li:last-child:not(.disabled)');
-		if (nextPageButton.length) { // if next page exists, we process it
+		if (nextPageButton.length) {
+			// if next page exists, we process it
 			console.log('Pagination found.');
 			sleep(3000);
-			await this.retrieveItemLinks(resolveUrl($(nextPageButton).find('a').attr('href')));
+			await this.retrieveItemLinks(
+				resolveUrl(
+					$(nextPageButton)
+						.find('a')
+						.attr('href')
+				)
+			);
 		}
 	}
 
@@ -71,23 +78,24 @@ module.exports = class MegaDental extends Scraper {
 		let $;
 		let articleId;
 		let i = 0;
-		while(true) {
+		while (true) {
 			$ = await utils.get(itemUrl);
-			if (!$) // error 404
+			if (!$)
+				// error 404
 				return;
 
 			articleId = $('input[name="idArticle"]').val();
-			if (articleId)
-				break;
+			if (articleId) break;
 
-			if(++i == 5)
-				throw new Error('Cannot get the article ID...');
-			else
-				console.warn('Cannot get the article ID...');
+			if (++i == 5) throw new Error('Cannot get the article ID...');
+			else console.warn('Cannot get the article ID...');
 		}
 
 		const designation = $('h1 > a').text();
-		const description = $('div.description').text().trim() || null;
+		const description =
+			$('div.description')
+				.text()
+				.trim() || null;
 		const brand = $('div.marque > img').attr('alt') || null;
 		const reference = $('div.reference > span').text();
 		if (!reference) {
@@ -121,8 +129,7 @@ module.exports = class MegaDental extends Scraper {
 			};
 
 			await utils.asyncForEach(routes, retrieveArticle);
-		}
-		else {
+		} else {
 			let price = $('div.prix-public').text() || $('div.prix').text();
 			let discountPrice = $('div.prix-public').text() && $('div.prix').text();
 
@@ -156,21 +163,20 @@ function getFirstRoute($, articleId) {
 		if (!formGroup.length) {
 			console.warn('A form group has not been found...');
 			route.push(null);
-		}
-		else {
-			let text = $(formGroup).find('input').attr('value');
-			if (text)
-				route.push(text);
-			else
-				route.push($(formGroup).find('option').length ? 'javascript:void(0)' : null);
+		} else {
+			let text = $(formGroup)
+				.find('input')
+				.attr('value');
+			if (text) route.push(text);
+			else route.push($(formGroup).find('option').length ? 'javascript:void(0)' : null);
 		}
 	}
 	return route;
 }
 
 async function determineNextRoutes(articleId, routesArray, route) {
-	for(let i = 0; i < route.length; ++i) {
-		if(route[i] == 'javascript:void(0)') {
+	for (let i = 0; i < route.length; ++i) {
+		if (route[i] == 'javascript:void(0)') {
 			let newRoutes = (await requestPossibilities(articleId, route, i)).map((possibility) => {
 				const newRoute = route.slice(0);
 				newRoute[i] = possibility;
@@ -189,9 +195,9 @@ async function requestPossibilities(articleId, route, i) {
 	const $ = cheerio.load((article.selected.tab.length && article.selected.tab[i]._) || article.selected.tab._);
 
 	let options = $('select:enabled > option:enabled');
-	if(!options.length) {
+	if (!options.length) {
 		options = [$('p.form-control-static input').val()];
-		if(!options[0]) {
+		if (!options[0]) {
 			console.error(route, i);
 			throw new Error('No option found at this index.');
 		}
@@ -200,8 +206,7 @@ async function requestPossibilities(articleId, route, i) {
 
 	const possibilities = [];
 	options.map((i, option) => {
-		if($(option).val() == 'javascript:void(0)')
-			return;
+		if ($(option).val() == 'javascript:void(0)') return;
 		possibilities.push($(option).val());
 	});
 
@@ -229,28 +234,21 @@ async function requestDynamicData(articleId, route) {
 
 // old stuff unused
 function determineOptionsPossibilities(optionsArray) {
-	optionsArray = optionsArray.filter(value => !!value);
+	optionsArray = optionsArray.filter((value) => !!value);
 
 	const result = [];
 	for (let row1 of optionsArray[0]) {
-		if(optionsArray.length > 1) {
+		if (optionsArray.length > 1) {
 			for (let row2 of optionsArray[1]) {
-				if(optionsArray.length > 2) {
+				if (optionsArray.length > 2) {
 					for (let row3 of optionsArray[2]) {
-						if(optionsArray.length > 3) {
-							for (let row4 of optionsArray[3])
-								result.push([row1, row2, row3, row4]);
-						}
-						else
-							result.push([row1, row2, row3]);
+						if (optionsArray.length > 3) {
+							for (let row4 of optionsArray[3]) result.push([row1, row2, row3, row4]);
+						} else result.push([row1, row2, row3]);
 					}
-				}
-				else
-					result.push([row1, row2]);
+				} else result.push([row1, row2]);
 			}
-		}
-		else
-			result.push([row1]);
+		} else result.push([row1]);
 	}
 	return result;
 }
