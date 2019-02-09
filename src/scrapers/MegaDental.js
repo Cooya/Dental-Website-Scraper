@@ -12,7 +12,8 @@ const ORIGIN = 'MegaDental';
 const CATEGORY_LINKS_COUNT = 284;
 const POINTLESS_ITEM_URLS = [
 	'https://www.megadental.fr/la-cfao/initial-iq-lustre-pastes-nf-accessoires.html',
-	'https://www.megadental.fr/la-cfao/pates-pour-initial-iq-lustre-pastes-nf.html'
+	'https://www.megadental.fr/la-cfao/pates-pour-initial-iq-lustre-pastes-nf.html',
+	'https://www.megadental.fr/la-cfao/pinceaux-kolinsky.html'
 ];
 
 const resolveUrl = utils.resolveUrl.bind(null, BASE_URL);
