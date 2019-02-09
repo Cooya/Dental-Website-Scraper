@@ -10,6 +10,7 @@ const BASE_URL = 'https://www.megadental.fr';
 const SITE_MAP_URL = 'https://www.megadental.fr/boutique/sitemap.php';
 const ORIGIN = 'MegaDental';
 const CATEGORY_LINKS_COUNT = 284;
+const POINTLESS_ITEM_URLS = ['https://www.megadental.fr/la-cfao/initial-iq-lustre-pastes-nf-accessoires.html'];
 
 const resolveUrl = utils.resolveUrl.bind(null, BASE_URL);
 
@@ -151,7 +152,7 @@ module.exports = class MegaDental extends Scraper {
 			itemsCounter++;
 			//sleep(3000);
 		}
-
+		if (itemsCounter == 0 && POINTLESS_ITEM_URLS.indexOf(itemUrl) != -1) return 1; // some items are fucked up and need to be ignored
 		return itemsCounter;
 	}
 };
