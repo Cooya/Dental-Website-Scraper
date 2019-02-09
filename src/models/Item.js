@@ -36,12 +36,12 @@ module.exports = (dynamicSchema) => {
 			const item = new this(itemData);
 			await item.save(); // this validates as well
 		} catch (e) {
-			if (e.message.indexOf('E11000 duplicate key error collection') != -1) {
-				console.error('Item already processed...');
-				return;
-			}
+			// if (e.message.indexOf('E11000 duplicate key error collection') != -1) {
+			// 	console.warn('Item already processed...');
+			// 	return;
+			// }
 
-			if (e.message.indexOf('E11000 duplicate key error index: db.items.$reference_1') && itemData.origin == 'MegaDental') {
+			if (e.message.indexOf('E11000 duplicate key error index: db.items.$reference_1') != -1) {
 				console.warn('Item with the same reference has already been saved.');
 				return;
 			}

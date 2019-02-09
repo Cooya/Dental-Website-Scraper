@@ -47,7 +47,7 @@ class Scraper {
 			async (itemLink) => {
 				let itemsCounter = await this.retrieveItem(itemLink.url);
 				if (itemsCounter == 0) throw new Error('No item has been created for the url "' + itemLink.url + '".');
-				if (itemsCounter > 0) await itemLink.markAsProcessed(); // when it is -1, we just ignore the item
+				if (itemsCounter > 0) await itemLink.markAsProcessed(); // when it is -1, we just ignore the item without mark it as processed
 				console.log('%s/%s item links processed.', ++i, itemLinks.length);
 			},
 			PARALLEL_REQUESTS
