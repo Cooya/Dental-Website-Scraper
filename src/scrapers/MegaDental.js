@@ -80,9 +80,7 @@ module.exports = class MegaDental extends Scraper {
 		let i = 0;
 		while (true) {
 			$ = await utils.get(itemUrl);
-			if (!$)
-				// error 404
-				return;
+			if (!$) return 1; // 404 error or response body empty, we can mark the item as processed
 
 			articleId = $('input[name="idArticle"]').val();
 			if (articleId) break;
