@@ -1,6 +1,7 @@
 const assert = require('assert');
 const Item = require('../models/HenryScheinItem');
 const Link = require('../models/Link');
+const Counter = require('../models/Counter');
 const Scraper = require('./Scraper');
 const utils = require('../utils');
 
@@ -9,7 +10,6 @@ const PRODUCTS_URL = 'https://www.henryschein.fr/fr-fr/Shopping/ProductBrowser.a
 const ORIGIN = 'HenrySchein';
 const COOKIES =
 	'Commerce_TestPersistentCookie=TestCookie; Commerce_TestSessionCookie=TestCookie; ASP.NET_SessionId=w4fhg5q0h3sykb1y4v3bwxsu; HSCSProfile=HSCSProfile=%7ba6264d5c-7518-43b7-8a50-6634c95a6c41%7d&PreferredCultureId=fr-FR&ExchangeMessage=&ShowProductsPicture=False; OneWeb=DivisionId=dental; OneWebSessionCookie=AccordianMenuActiveIndex=0&GetNextCounter=4130&BrowseSupply_ContShoppingKey=%2ffr-fr%2fShopping%2fProductBrowser.aspx%3fpagenumber%3d1&LastViewedProducts=896-1129%2c896-1973%2c894-2456; CampaignHistory=2907,2868,2913,2902,2857,2907,2868,2913,2902,2857,2907,2868,2913,2902,2857,2907,2868,2913,2902,2857,2907,2868,2913,2902,2857,2907,2868,2913,2902,2857,2907,2868,2913,2902,2857; TestCookie=ok; france_website#lang=fr-FR';
-const LAST_PROCESSED_PAGE = 1136;
 
 const resolveUrl = utils.resolveUrl.bind(null, BASE_URL);
 
@@ -20,15 +20,18 @@ module.exports = class HenrySchein extends Scraper {
 
 	async retrieveAllItemLinks() {
 		console.log('Fetching item links...');
-		let i = LAST_PROCESSED_PAGE;
+		const counter = await Counter.get('henry_schein_page_number', 1);
 		while (true) {
-			const $ = await utils.get(PRODUCTS_URL + '?pagenumber=' + i, {headers: {Cookie: COOKIES}, encoding: 'iso-8859-15'});
+			const $ = await utils.get(PRODUCTS_URL + '?pagenumber=' + counter.value, {headers: {Cookie: COOKIES}, encoding: 'iso-8859-15'});
 			const itemLinks = $('h2.product-name > a');
 			if (!itemLinks.length) break;
 			for (let itemLink of itemLinks.get()) {
 				let link = new Link({type: 'item', origin: ORIGIN, url: resolveUrl($(itemLink).attr('href'))});
 				await link.customSave();
 			}
+
+			console.log('Page %s processed.', counter.value);
+			await counter.inc();
 		}
 		console.log('%s item links are in database.', await Link.find({type: 'item', origin: ORIGIN}).countDocuments());
 	}

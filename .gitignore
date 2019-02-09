@@ -1,3 +1,4 @@
 node_modules/
 config.js
 output.xlsx
+npm-debug.log
