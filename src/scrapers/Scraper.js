@@ -45,8 +45,9 @@ class Scraper {
 		await utils.asyncThreads(
 			itemLinks,
 			async (itemLink) => {
-				if ((await this.retrieveItem(itemLink.url)) == 0) throw new Error('No item has been created for the url "' + itemLink.url + '".');
-				await itemLink.markAsProcessed();
+				let itemsCounter = await this.retrieveItem(itemLink.url);
+				if (itemsCounter == 0) throw new Error('No item has been created for the url "' + itemLink.url + '".');
+				if (itemsCounter > 0) await itemLink.markAsProcessed(); // when it is -1, we just ignore the item
 				console.log('%s/%s item links processed.', ++i, itemLinks.length);
 			},
 			PARALLEL_REQUESTS
