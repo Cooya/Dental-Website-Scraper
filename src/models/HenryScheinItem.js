@@ -9,8 +9,7 @@ const schema = {
 	},
 	designation: {
 		type: String,
-		required: true,
-		unique: true
+		required: true
 	},
 	attr1: {
 		type: String,
