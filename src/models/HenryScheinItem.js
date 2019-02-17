@@ -31,7 +31,7 @@ const schema = {
 	reference: {
 		type: String,
 		required: true,
-		unique: true,
+		unique: false, // if the item is sold by lot then the same reference appears several times
 		validate: {
 			validator: function(v) {
 				return /[0-9-]+/.test(v);
