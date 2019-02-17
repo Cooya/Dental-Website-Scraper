@@ -38,7 +38,8 @@ module.exports = (dynamicSchema, index) => {
 			const item = new this(itemData);
 			await item.save(); // this validates as well
 		} catch (e) {
-			if (e.message.indexOf('E11000 duplicate key error collection') != -1) {
+			// "E11000 duplicate key error collection" or "E11000 duplicate key error index" (it depends of MongoDB version)
+			if (e.message.indexOf('E11000 duplicate key error') != -1) {
 				console.warn('This item has already been processed.');
 				return;
 			}
