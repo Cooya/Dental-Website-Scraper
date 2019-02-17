@@ -18,7 +18,7 @@ module.exports = (dynamicSchema, index) => {
 		)
 	);
 
-	if (index) itemSchema.index(index);
+	if (index) itemSchema.index(index, {unique: true});
 
 	itemSchema.pre('validate', function(next) {
 		const docKeys = Object.keys(this.toObject()); // new Object(this) is not working
@@ -38,13 +38,8 @@ module.exports = (dynamicSchema, index) => {
 			const item = new this(itemData);
 			await item.save(); // this validates as well
 		} catch (e) {
-			// if (e.message.indexOf('E11000 duplicate key error collection') != -1) {
-			// 	console.warn('Item already processed...');
-			// 	return;
-			// }
-
-			if (e.message.indexOf('E11000 duplicate key error index: db.items.$reference_1') != -1) {
-				console.warn('Item with the same reference has already been saved.');
+			if (e.message.indexOf('E11000 duplicate key error collection') != -1) {
+				console.warn('This item has already been processed.');
 				return;
 			}
 
