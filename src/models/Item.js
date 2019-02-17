@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
-module.exports = (dynamicSchema) => {
-	const ItemSchema = new mongoose.Schema(
+module.exports = (dynamicSchema, index) => {
+	const itemSchema = new mongoose.Schema(
 		Object.assign(
 			{
 				origin: {
@@ -18,18 +18,20 @@ module.exports = (dynamicSchema) => {
 		)
 	);
 
-	ItemSchema.pre('validate', function(next) {
+	if (index) itemSchema.index(index);
+
+	itemSchema.pre('validate', function(next) {
 		const docKeys = Object.keys(this.toObject()); // new Object(this) is not working
-		for (let schemaKey in ItemSchema.obj) if (!docKeys.includes(schemaKey)) throw new Error('"' + schemaKey + '" key is required.');
+		for (let schemaKey in itemSchema.obj) if (!docKeys.includes(schemaKey)) throw new Error('"' + schemaKey + '" key is required.');
 		next();
 	});
 
-	ItemSchema.post('save', (doc, next) => {
+	itemSchema.post('save', (doc, next) => {
 		console.log('Item "%s" has been saved.', doc.url);
 		next();
 	});
 
-	ItemSchema.statics.newItem = async function(itemData) {
+	itemSchema.statics.newItem = async function(itemData) {
 		console.debug(itemData);
 
 		try {
@@ -50,9 +52,9 @@ module.exports = (dynamicSchema) => {
 		}
 	};
 
-	ItemSchema.statics.getDynamicKeys = function() {
+	itemSchema.statics.getDynamicKeys = function() {
 		return Object.keys(dynamicSchema);
 	};
 
-	return mongoose.model('Item', ItemSchema);
+	return mongoose.model('Item', itemSchema);
 };

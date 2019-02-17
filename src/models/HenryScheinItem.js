@@ -31,7 +31,6 @@ const schema = {
 	reference: {
 		type: String,
 		required: true,
-		unique: false, // if the item is sold by lot then the same reference appears several times
 		validate: {
 			validator: function(v) {
 				return /[0-9-]+/.test(v);
@@ -65,4 +64,4 @@ const schema = {
 	}
 };
 
-module.exports = require('./Item')(schema);
+module.exports = require('./Item')(schema, {reference: 1, soldBy: 1});
