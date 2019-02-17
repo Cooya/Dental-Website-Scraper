@@ -31,7 +31,13 @@ const schema = {
 	reference: {
 		type: String,
 		required: true,
-		unique: true
+		unique: true,
+		validate: {
+			validator: function(v) {
+				return /[0-9-]+/.test(v);
+			},
+			message: 'The reference is invalid.'
+		}
 	},
 	description: {
 		type: String,

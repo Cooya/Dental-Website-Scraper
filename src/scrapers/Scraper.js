@@ -1,9 +1,8 @@
 const xlsx = require('xlsx');
 
+const config = require('../../config');
 const Link = require('../models/Link');
-const utils = require('../utils');
-
-const PARALLEL_REQUESTS = 5;
+const utils = require('../utils/utils');
 
 class Scraper {
 	constructor(origin) {
@@ -32,7 +31,7 @@ class Scraper {
 				await categoryLink.markAsProcessed();
 				console.log('%s/%s category links processed.', ++i, categoryLinks.length);
 			},
-			PARALLEL_REQUESTS
+			config.parallelRequests
 		);
 		console.log('All category links have been processed.');
 		console.log('%s item links are in database.', await Link.find({origin: this.origin, type: 'item'}).countDocuments());
@@ -50,7 +49,7 @@ class Scraper {
 				if (itemsCounter > 0) await itemLink.markAsProcessed(); // when it is -1, we just ignore the item without mark it as processed
 				console.log('%s/%s item links processed.', ++i, itemLinks.length);
 			},
-			PARALLEL_REQUESTS
+			config.parallelRequests
 		);
 		console.log('All item links have been processed.');
 		console.log('%s items are in database.', await this.Item.find({origin: this.origin}).countDocuments());
