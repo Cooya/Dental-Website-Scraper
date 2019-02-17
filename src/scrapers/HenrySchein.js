@@ -3,7 +3,7 @@ const Item = require('../models/HenryScheinItem');
 const Link = require('../models/Link');
 const Counter = require('../models/Counter');
 const Scraper = require('./Scraper');
-const utils = require('../utils');
+const utils = require('../utils/utils');
 
 const BASE_URL = 'https://www.henryschein.fr';
 const PRODUCTS_URL = 'https://www.henryschein.fr/fr-fr/Shopping/ProductBrowser.aspx';
@@ -14,6 +14,11 @@ const COOKIES =
 const resolveUrl = utils.resolveUrl.bind(null, BASE_URL);
 
 module.exports = class HenrySchein extends Scraper {
+	constructor(origin) {
+		origin = origin || 'HenrySchein';
+		super(origin);
+	}
+
 	async retrieveAllCategoryLinks() {
 		console.log('No category link to fetch.');
 	}
@@ -55,13 +60,13 @@ module.exports = class HenrySchein extends Scraper {
 			.text()
 			.split(' | ');
 		const subtitlePart1 = subtitleSplit[0].split(' / ');
-		const subtitlePart2 = subtitleSplit[1].split(' - ');
 		const crossedPrice = $('div.value > s')
 			.text()
 			.trim();
-		const providerRef = subtitlePart2[1].trim().split(' ')[0];
+		const refsAndBrand = $('h2.product-title:nth-child(1) > small')
+			.text()
+			.replace(/\n/g, ' ');
 		const finalAttr = title[title.length - 1].trim();
-
 		let pricesByLot = [];
 		const prices = $('aside.price-opts > strong')
 			.text()
@@ -96,12 +101,18 @@ module.exports = class HenrySchein extends Scraper {
 				attr2: title.length > 3 ? title[2].trim() : null,
 				attr3: title.length > 4 ? title[3].trim() : null,
 				finalAttr: finalAttr != designation ? finalAttr : null,
-				reference: subtitlePart1[2].trim(),
+				reference: refsAndBrand.split(' | ')[0].trim(),
+				providerRef: refsAndBrand
+					.split(' | ')[1]
+					.split(' - ')[1]
+					.trim(),
+				brand: refsAndBrand
+					.split(' | ')[1]
+					.split(' - ')[0]
+					.trim(),
 				description: $('li.customer-notes div.value')
 					.text()
 					.trim(),
-				brand: subtitlePart2[0].trim(),
-				providerRef: providerRef != '.' ? providerRef : null,
 				soldBy: priceByLot.soldBy,
 				commonPrice: priceByLot.commonPrice ? extractPriceAsNumber(priceByLot.commonPrice) : null,
 				discountPrice: priceByLot.discountPrice ? extractPriceAsNumber(priceByLot.discountPrice) : null

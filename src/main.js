@@ -1,4 +1,4 @@
-require('./logs');
+require('./utils/logs');
 const mongoose = require('mongoose');
 
 const config = require('../config');
@@ -6,7 +6,7 @@ const Scraper = require('./scrapers/' + config.origin);
 
 (async function main() {
 	try {
-		await mongoose.connect(config.dbUrl, { useCreateIndex: true, useNewUrlParser: true });
+		await mongoose.connect(config.dbUrl, {useCreateIndex: true, useNewUrlParser: true});
 
 		const scraper = new Scraper(config.origin);
 		await scraper.retrieveAllCategoryLinks();
@@ -15,8 +15,7 @@ const Scraper = require('./scrapers/' + config.origin);
 		await scraper.saveItemsIntoFile(config.origin, config.outputFile);
 
 		await mongoose.disconnect();
-	}
-	catch (e) {
+	} catch (e) {
 		console.error(e);
 		process.exit(1);
 	}
