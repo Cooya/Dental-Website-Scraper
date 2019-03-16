@@ -1,9 +1,10 @@
 const assert = require('assert');
+const utils = require('@coya/utils');
+
+const Counter = require('../models/Counter');
 const Item = require('../models/HenryScheinItem');
 const Link = require('../models/Link');
-const Counter = require('../models/Counter');
 const Scraper = require('./Scraper');
-const utils = require('../utils/utils');
 
 const BASE_URL = 'https://www.henryschein.fr';
 const PRODUCTS_URL = 'https://www.henryschein.fr/fr-fr/Shopping/ProductBrowser.aspx';

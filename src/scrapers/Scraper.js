@@ -1,8 +1,8 @@
+const utils = require('@coya/utils');
 const xlsx = require('xlsx');
 
 const config = require('../../config');
 const Link = require('../models/Link');
-const utils = require('../utils/utils');
 
 class Scraper {
 	constructor(origin) {

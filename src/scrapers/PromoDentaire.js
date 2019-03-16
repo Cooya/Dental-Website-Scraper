@@ -1,8 +1,9 @@
 const assert = require('assert');
+const utils = require('@coya/utils');
+
 const Item = require('../models/PromoDentaireItem');
 const Link = require('../models/Link');
 const Scraper = require('./Scraper');
-const utils = require('../utils');
 
 const BASE_URL = 'https://www.promodentaire.com';
 const ORIGIN = 'PromoDentaire';
@@ -15,11 +16,7 @@ module.exports = class PromoDentaire extends Scraper {
 	constructor(origin) {
 		super(origin);
 		this.header.splice(6, 1); // delete the entry "attributesArray"
-		this.header.splice(
-			6,
-			0,
-			...['key1', 'attr1', 'key2', 'attr2', 'key3', 'attr3', 'key4', 'attr4', 'key5', 'attr5']
-		);
+		this.header.splice(6, 0, ...['key1', 'attr1', 'key2', 'attr2', 'key3', 'attr3', 'key4', 'attr4', 'key5', 'attr5']);
 	}
 
 	async retrieveAllCategoryLinks() {
@@ -41,10 +38,7 @@ module.exports = class PromoDentaire extends Scraper {
 			await categoryLink.customSave();
 		}
 		console.log('All category links have been retrieved.');
-		console.log(
-			'%s category links are in database.',
-			await Link.find({origin: ORIGIN, type: 'category'}).countDocuments()
-		);
+		console.log('%s category links are in database.', await Link.find({origin: ORIGIN, type: 'category'}).countDocuments());
 	}
 
 	async retrieveItemLinks(categoryUrl) {

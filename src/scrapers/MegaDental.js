@@ -1,16 +1,20 @@
 const cheerio = require('cheerio');
 const sleep = require('system-sleep');
+const parseString = require('xml2js').parseString;
+const querystring = require('querystring');
+const util = require('util');
+const utils = require('@coya/utils');
 
 const Item = require('../models/MegaDentalItem');
 const Link = require('../models/Link');
 const Scraper = require('./Scraper');
-const utils = require('../utils');
 
 const BASE_URL = 'https://www.megadental.fr';
 const SITE_MAP_URL = 'https://www.megadental.fr/boutique/sitemap.php';
 const ORIGIN = 'MegaDental';
 const CATEGORY_LINKS_COUNT = 284;
 
+const parseXML = util.promisify(parseString);
 const resolveUrl = utils.resolveUrl.bind(null, BASE_URL);
 
 module.exports = class MegaDental extends Scraper {
@@ -192,7 +196,7 @@ async function determineNextRoutes(articleId, routesArray, route) {
 }
 
 async function requestPossibilities(articleId, route, i) {
-	const article = await utils.requestArticleToBoutique(articleId, route, i > 0 ? i - 1 : null);
+	const article = await requestArticleToBoutique(articleId, route, i > 0 ? i - 1 : null);
 	const $ = cheerio.load((article.selected.tab.length && article.selected.tab[i]._) || article.selected.tab._);
 
 	let options = $('select:enabled > option:enabled');
@@ -216,7 +220,7 @@ async function requestPossibilities(articleId, route, i) {
 
 async function requestDynamicData(articleId, route) {
 	console.log('Requesting dynamic data...');
-	const article = await utils.requestArticleToBoutique(articleId, route);
+	const article = await requestArticleToBoutique(articleId, route);
 	if (article.id == '-999') {
 		console.error('The parameters for this article are not valid.');
 		return null;
@@ -233,7 +237,15 @@ async function requestDynamicData(articleId, route) {
 	};
 }
 
-// old stuff unused
+async function requestArticleToBoutique(articleId, route, last = null) {
+	const str = route.filter((val) => !!val).join('|') + '|';
+	const data = await utils.request('get', BASE_URL + '/boutique/lib.tpl.php?art=' + articleId + '&str=' + querystring.escape(str) + (last ? '&last=' + last : ''));
+	const json = await parseXML(data, {explicitArray: false});
+	if (!json.article) throw new Error('No article returned.');
+	return json.article;
+}
+
+// old unused stuff
 function determineOptionsPossibilities(optionsArray) {
 	optionsArray = optionsArray.filter((value) => !!value);
 
