@@ -302,9 +302,9 @@ module.exports = class MegaDental extends Scraper {
 		for(let i = 0; i < item.attributes.length; ++i) {
 			item['attributeName' + (i + 1)] = item.attributes[i].label;
 			item['attributeValue' + (i + 1)] = item.attributes[i].value;
-			if(item.reference.startsWith('no-ref')) item.reference = null;
 		}
 		delete item.attributes;
+		if(item.reference.startsWith('no-ref')) item.reference = null;
 	}
 };
 
