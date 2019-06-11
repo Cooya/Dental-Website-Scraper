@@ -300,8 +300,9 @@ module.exports = class MegaDental extends Scraper {
 
 	lintItem(item) {
 		for(let i = 0; i < item.attributes.length; ++i) {
-			item['attributeName' + i] = item.attributes[i].label;
-			item['attributeValue' + i] = item.attributes[i].value;
+			item['attributeName' + (i + 1)] = item.attributes[i].label;
+			item['attributeValue' + (i + 1)] = item.attributes[i].value;
+			if(item.reference.startsWith('no-ref')) item.reference = null;
 		}
 		delete item.attributes;
 	}
