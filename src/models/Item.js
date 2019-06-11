@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-module.exports = (dynamicSchema, index) => {
+module.exports = (dynamicSchema, index, mapping) => {
 	const itemSchema = new mongoose.Schema(
 		Object.assign(
 			{
@@ -48,8 +48,8 @@ module.exports = (dynamicSchema, index) => {
 		}
 	};
 
-	itemSchema.statics.getDynamicKeys = function() {
-		return Object.keys(dynamicSchema);
+	itemSchema.statics.getMapping = () => {
+		return mapping;
 	};
 
 	return mongoose.model('Item', itemSchema);

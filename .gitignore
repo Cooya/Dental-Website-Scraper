@@ -1,4 +1,5 @@
 node_modules/
+assets/output.xlsx
+assets/debug.json
 config.js
-output.xlsx
 npm-debug.log

@@ -9,7 +9,7 @@ class Scraper {
 		if (!origin) throw new Error('An origin has to be specified.');
 		this.origin = origin;
 		this.Item = require('../models/' + this.origin + 'Item');
-		this.header = ['url'].concat(this.Item.getDynamicKeys());
+		this.mapping = this.Item.getMapping();
 	}
 
 	async retrieveAllCategoryLinks() {
@@ -64,12 +64,15 @@ class Scraper {
 		for (let i = 0; i < items.length; ++i) {
 			items[i] = items[i]._doc;
 			if (this.lintItem) this.lintItem(items[i]);
-			for (let key of Object.keys(items[i])) if (this.header.indexOf(key) == -1) delete items[i][key];
+
+			// rename and reorganize keys order
+			let obj = {};
+			for (let [key, val] of Object.entries(this.mapping))
+				obj[val] = items[i][key];
+			items[i] = obj;
 		}
 
-		var ws = xlsx.utils.json_to_sheet(items, {
-			header: this.header
-		});
+		var ws = xlsx.utils.json_to_sheet(items);
 		const wb = xlsx.utils.book_new();
 		xlsx.utils.book_append_sheet(wb, ws, origin);
 		xlsx.writeFile(wb, outputFile);
