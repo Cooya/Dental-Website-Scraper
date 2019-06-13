@@ -16,7 +16,7 @@ const BASE_URL = 'https://www.megadental.fr';
 const SITE_MAP_URL = 'https://www.megadental.fr/sitemap.xml';
 const ORIGIN = 'MegaDental';
 const CATEGORY_LINKS_COUNT = 284;
-const LINKS_COUNT = 12146;
+const LINKS_COUNT = 12143;
 const SPECS_LIST = [
 	'Code Article fournisseur',
 	'Dispositif Medical',
@@ -136,7 +136,12 @@ module.exports = class MegaDental extends Scraper {
 
 		if($('#product-options-wrapper').length) {
 			const optionsData = JSON.parse($('#product-options-wrapper script[type="text/x-magento-init"]').html());
-			fs.writeFileSync(config.debugFile, JSON.stringify(optionsData));
+
+			if(false) {
+				fs.writeFileSync(config.debugFile, JSON.stringify(optionsData));
+				process.exit(0);
+			}
+
 			let json;
 			try {
 				json = optionsData['#product_addtocart_form'].configurable.spConfig;
@@ -166,7 +171,7 @@ module.exports = class MegaDental extends Scraper {
 				
 				// add options for every attribute
 				const attributes = Object.values(json.attributes);
-				if(attributes.length > 7) throw new Error('More than 5 attributes !');
+				if(attributes.length > 7) throw new Error('More than 7 attributes !');
 				for(let i = 0; i < attributes.length; ++i) {
 					for(let option of attributes[i].options) {
 						for(let productId of option.products) {
@@ -206,10 +211,19 @@ module.exports = class MegaDental extends Scraper {
 					for (let [key, val] of Object.entries(json.dynamic.marque)) {
 						products[key].brand = val.value;
 					}
-
+				
 				for (let [key, val] of Object.entries(json.optionPrices)) {
-					products[key].price = val.basePrice.amount;
-					products[key].discountPrice = val.besttierPrice.amount;
+					products[key].prices = [];
+					for(let tierPrice of Object.values(val.tierPrices)) {
+						products[key].prices.push({
+							quantity: tierPrice.qty,
+							basePrice: val.basePrice.amount,
+							discountPrice: tierPrice.price
+						});
+					}
+
+					if(Object.values(val.tierPrices).length > 4)
+						throw new Error('More than 4 tier prices !');
 				}
 
 				let itemsCounter = 0;
@@ -218,15 +232,37 @@ module.exports = class MegaDental extends Scraper {
 					if(!product.presentation) product.presentation = null;
 					if(!product.supplierArticleCode) product.supplierArticleCode = null;
 					if(!product.reference) product.reference = 'no-ref-' + uuidv1();
-					if(product.discountPrice == product.price) product.discountPrice = null;
 					await Item.newItem(product);
 					itemsCounter++;
 				}
 				return itemsCounter;
 			}
 		}
-		
-		const prices = $('div.price-final_price span.price').get();
+
+		// parse prices in yellow area
+		const yellowPrices = $('div.price-final_price span.price').get();
+		const basePrice = Number($(yellowPrices[yellowPrices.length - 1]).text().replace('€', '.').replace(/[^0-9.]/g, ''));
+		const discountPrice = yellowPrices.length > 1 ? Number($(yellowPrices[0]).text().replace('€', '.').replace(/[^0-9.]/g, '')) : null;
+
+		let prices = [];
+		const tierPrices = $('ul.prices-tier > li').get();
+		if(tierPrices.length) { // if there is tier prices to the right-hand side
+			for(let tierPrice of tierPrices) {
+				prices.push({
+					quantity: parseInt($(tierPrice).text().match(/Achetez-en ([0-9]+) pour/)[1]),
+					basePrice,
+					discountPrice: Number($(tierPrice).find('span.price-wrapper').attr('data-price-amount'))
+				});
+			}
+		}
+		else {
+			prices.push({
+				quantity: 1,
+				basePrice,
+				discountPrice 
+			});
+		}
+
 		await Item.newItem({
 			origin: ORIGIN,
 			url: itemUrl,
@@ -237,8 +273,7 @@ module.exports = class MegaDental extends Scraper {
 			attributes: [],
 			description: $('div.description').text().trim() || null,
 			brand: $('td[data-th="Marque"]').text().trim() || null,
-			price: $(prices[prices.length - 1]).text().replace('€', '.').replace(/[^0-9.]/g, ''),
-			discountPrice: prices.length > 1 ? $(prices[0]).text().replace('€', '.').replace(/[^0-9.]/g, '') : null
+			prices
 		});
 
 		return 1;
@@ -304,6 +339,14 @@ module.exports = class MegaDental extends Scraper {
 			item['attributeValue' + (i + 1)] = item.attributes[i].value;
 		}
 		delete item.attributes;
+		for(let i = 0; i < item.prices.length; ++i) {
+			item['quantity' + (i + 1)] = item.prices[i].quantity;
+			item['price' + (i + 1)] = item.prices[i].basePrice || item.prices[i].price; // key mistake, it should be "basePrice" only
+			item['discountPrice' + (i + 1)] = item.prices[i].discountPrice;
+		}
+		if(item.price1 == item.discountPrice1)
+			item.discountPrice1 = null;
+		delete item.prices;
 		if(item.reference.startsWith('no-ref')) item.reference = null;
 	}
 };

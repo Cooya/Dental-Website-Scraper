@@ -28,19 +28,9 @@ module.exports = require('./Item')({
 		type: String,
 		required: false // sometimes there is no brand...
 	},
-	price: {
-		type: Number,
+	prices: {
+		type: Array,
 		required: true
-	},
-	discountPrice: {
-		type: Number,
-		required: false
-		// validate: {
-		// 	validator: function (v) {
-		// 		return v == null || this.price >= v;
-		// 	},
-		// 	message: 'The price is not superior or equal to the discount price.'
-		// },
 	}
 }, null, {
 	'url': 'URL',
@@ -64,6 +54,12 @@ module.exports = require('./Item')({
 	'attributeValue7': 'VALEUR ATTRIBUT 7',
 	'description': 'DESCRIPTIF',
 	'brand': 'MARQUE',
-	'price': 'PRIX DE VENTE CATALOGUE',
-	'discountPrice': 'PRIX DE VENTE PROMOTIONNEL'
+	'price1': 'PRIX DE REFERENCE UNITAIRE',
+	'discountPrice1': 'PRIX PROMOTIONNEL UNITAIRE',
+	'quantity2': 'QUANTITE DEGRESSIF 1',
+	'discountPrice2': 'PRIX PROMOTIONNEL DEGRESSIF 1',
+	'quantity3': 'QUANTITE DEGRESSIF 2',
+	'discountPrice3': 'PRIX PROMOTIONNEL DEGRESSIF 2',
+	'quantity4': 'QUANTITE DEGRESSIF 3',
+	'discountPrice4': 'PRIX PROMOTIONNEL DEGRESSIF 3'
 });
