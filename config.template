@@ -1,6 +1,0 @@
-module.exports = {
-	dbUrl: '',
-	origin: '',
-	outputFile: './output.xlsx',
-	parallelRequests: 5
-};

@@ -1,18 +1,28 @@
-require('./utils/logs');
 const mongoose = require('mongoose');
 
 const config = require('../config');
-const Scraper = require('./scrapers/' + config.origin);
+require('./utils/logs');
 
-(async function main() {
+(async () => {
 	try {
-		await mongoose.connect(config.dbUrl, {useCreateIndex: true, useNewUrlParser: true});
+		let origin;
+		for(let i = 0; i < process.argv.length; ++i) {
+			if(process.argv[i] == '--origin')
+				origin = process.argv[i + 1];
+		}
 
-		const scraper = new Scraper(config.origin);
+		if(!origin) {
+			console.log('Usage: npm start -- --origin [HenrySchein|MegaDental|PromoDentaire]');
+			process.exit(0);
+		}
+
+		await mongoose.connect(config.dbUrl, { useCreateIndex: true, useNewUrlParser: true });
+
+		const scraper = new (require('./scrapers/' + origin))();
 		await scraper.retrieveAllCategoryLinks();
-		await scraper.retrieveAllItemLinks();
+		// await scraper.retrieveAllItemLinks();
 		await scraper.retrieveAllItems();
-		await scraper.saveItemsIntoFile(config.origin, config.outputFile);
+		await scraper.saveItemsIntoFile(config.outputFile);
 
 		await mongoose.disconnect();
 	} catch (e) {

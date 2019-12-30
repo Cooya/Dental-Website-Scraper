@@ -16,7 +16,6 @@ const BASE_URL = 'https://www.megadental.fr';
 const SITE_MAP_URL = 'https://www.megadental.fr/sitemap.xml';
 const ORIGIN = 'MegaDental';
 const CATEGORY_LINKS_COUNT = 284;
-const LINKS_COUNT = 12143;
 const SPECS_LIST = [
 	'Code Article fournisseur',
 	'Dispositif Medical',
@@ -35,22 +34,26 @@ const parseXML = util.promisify(parseString);
 const resolveUrl = utils.resolveUrl.bind(null, BASE_URL);
 
 module.exports = class MegaDental extends Scraper {
+	constructor() {
+		super(ORIGIN);
+	}
+
 	async analyseSiteMap() {
 		console.log('Analysing sitemap...');
 		const xml = await utils.request('get', SITE_MAP_URL);
 		const json = await parseXML(xml);
 
-		const linksInDatabase = await Link.countDocuments({origin: ORIGIN, type: 'item'});
-		if(linksInDatabase == LINKS_COUNT) {
+		const linksInDatabase = await Link.countDocuments({ origin: ORIGIN, type: 'item' });
+		if(linksInDatabase == json.urlset.url.length) {
 			console.log('Items collection up-to-date.');
 			return;
 		}
 
-		let link;
 		for (let url of json.urlset.url) {
-			link = url.loc[0];
-			link = new Link({origin: ORIGIN, type: 'item', url: link});
-			await link.customSave();
+			if(await Link.findOne({ origin: ORIGIN, type: 'item', url: url.loc[0] }))
+				continue;
+
+			await (new Link({ origin: ORIGIN, type: 'item', url: url.loc[0] })).customSave();
 
 			// if (link.match(/https:\/\/www\.megadental\.fr\/[a-z0-9-]+\/[a-z0-9-]+\.html/)) {
 			// 	link = new Link({origin: ORIGIN, type: 'category', url: link});
@@ -72,25 +75,28 @@ module.exports = class MegaDental extends Scraper {
 		// }
 
 		// better way (retrieve all category links and all item links)
-		const categoryLinksCount = await Link.countDocuments({origin: ORIGIN, type: 'category'});
-		if (categoryLinksCount < CATEGORY_LINKS_COUNT) await this.analyseSiteMap();
+		const categoryLinksCount = await Link.countDocuments({ origin: ORIGIN, type: 'category' });
+		if (categoryLinksCount < CATEGORY_LINKS_COUNT)
+			await this.analyseSiteMap();
 
 		console.log('All category links have been retrieved.');
-		console.log('%s category links are in database.', await Link.find({origin: ORIGIN, type: 'category'}).countDocuments());
+		console.log('%s category links are in database.', await Link.find({ origin: ORIGIN, type: 'category' }).countDocuments());
 	}
 
 	async retrieveAllItemLinks() {
-		// this part is skipped
+		// this part is skipped because all links are retrieved through the sitemap
 	}
 
-	async retrieveItemLinks(categoryUrl) { // this method is not used anymore
-		const $ = await utils.post(categoryUrl, {body: {nbrParPage: 100}});
-		if (!$) return;
+	// this method is not used anymore
+	async retrieveItemLinks(categoryUrl) {
+		const $ = await utils.post(categoryUrl, { body: { nbrParPage: 100 } });
+		if (!$)
+			return;
 
 		const itemLinks = utils.getLinks($, 'a.hover-infos');
 		console.log('%s item links found on the page.', itemLinks.length);
 		for (let itemLink of itemLinks) {
-			itemLink = new Link({origin: ORIGIN, type: 'item', url: resolveUrl(itemLink)});
+			itemLink = new Link({ origin: ORIGIN, type: 'item', url: resolveUrl(itemLink) });
 			await itemLink.customSave();
 		}
 
@@ -99,13 +105,7 @@ module.exports = class MegaDental extends Scraper {
 			// if next page exists, we process it
 			console.log('Pagination found.');
 			sleep(3000);
-			await this.retrieveItemLinks(
-				resolveUrl(
-					$(nextPageButton)
-						.find('a')
-						.attr('href')
-				)
-			);
+			await this.retrieveItemLinks(resolveUrl($(nextPageButton).find('a').attr('href')));
 		}
 	}
 
@@ -114,7 +114,7 @@ module.exports = class MegaDental extends Scraper {
 		let $;
 		while(true) {
 			try {
-				$ = await utils.get(itemUrl, {timeout: 10000});
+				$ = await utils.get(itemUrl, { timeout: 10000 });
 				break;
 			} catch(e) {
 				console.warn('Timeout, trying again...');
@@ -351,6 +351,7 @@ module.exports = class MegaDental extends Scraper {
 	}
 };
 
+// eslint-disable-next-line no-unused-vars
 function getFirstRoute($, articleId) {
 	const route = [];
 	for (let i = 0; i < 4; ++i) {
@@ -367,6 +368,7 @@ function getFirstRoute($, articleId) {
 	return route;
 }
 
+// eslint-disable-next-line no-unused-vars
 async function determineNextRoutes(articleId, routesArray, route) {
 	for (let i = 0; i < route.length; ++i) {
 		if (route[i] == 'javascript:void(0)') {
@@ -405,6 +407,7 @@ async function requestPossibilities(articleId, route, i) {
 	return possibilities;
 }
 
+// eslint-disable-next-line no-unused-vars
 async function requestDynamicData(articleId, route) {
 	console.log('Requesting dynamic data...');
 	const article = await requestArticleToBoutique(articleId, route);
@@ -426,12 +429,12 @@ async function requestDynamicData(articleId, route) {
 async function requestArticleToBoutique(articleId, route, last = null) {
 	const str = route.filter((val) => !!val).join('|') + '|';
 	const data = await utils.request('get', BASE_URL + '/boutique/lib.tpl.php?art=' + articleId + '&str=' + querystring.escape(str) + (last ? '&last=' + last : ''));
-	const json = await parseXML(data, {explicitArray: false});
+	const json = await parseXML(data, { explicitArray: false });
 	if (!json.article) throw new Error('No article returned.');
 	return json.article;
 }
 
-// old unused stuff
+// eslint-disable-next-line no-unused-vars
 function determineOptionsPossibilities(optionsArray) {
 	optionsArray = optionsArray.filter((value) => !!value);
 

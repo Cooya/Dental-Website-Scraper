@@ -13,14 +13,14 @@ const EXPECTED_CATEGORIES_COUNT = 17;
 const resolveUrl = utils.resolveUrl.bind(null, BASE_URL);
 
 module.exports = class PromoDentaire extends Scraper {
-	constructor(origin) {
-		super(origin);
+	constructor() {
+		super(ORIGIN);
 		this.header.splice(6, 1); // delete the entry "attributesArray"
 		this.header.splice(6, 0, ...['key1', 'attr1', 'key2', 'attr2', 'key3', 'attr3', 'key4', 'attr4', 'key5', 'attr5']);
 	}
 
 	async retrieveAllCategoryLinks() {
-		if ((await Link.find({origin: ORIGIN, type: 'category'}).countDocuments()) == EXPECTED_CATEGORIES_COUNT) {
+		if ((await Link.find({ origin: ORIGIN, type: 'category' }).countDocuments()) == EXPECTED_CATEGORIES_COUNT) {
 			console.log('All category links have been retrieved.');
 			return;
 		}
@@ -38,24 +38,19 @@ module.exports = class PromoDentaire extends Scraper {
 			await categoryLink.customSave();
 		}
 		console.log('All category links have been retrieved.');
-		console.log('%s category links are in database.', await Link.find({origin: ORIGIN, type: 'category'}).countDocuments());
+		console.log('%s category links are in database.', await Link.find({ origin: ORIGIN, type: 'category' }).countDocuments());
 	}
 
 	async retrieveItemLinks(categoryUrl) {
 		let $ = await utils.get(categoryUrl);
-		let nbPages = parseInt(
-			$('#divGammesListe > div > a')
-				.last()
-				.attr('href')
-				.match(/numPageCourante=([0-9]+)/)[1]
-		);
+		const nbPages = parseInt($('#divGammesListe > div > a').last().attr('href').match(/numPageCourante=([0-9]+)/)[1]);
 		assert(Number.isInteger(nbPages));
 		console.log('%s pages found on the page.', nbPages);
 
 		let itemLinks = utils.getLinks($, '#divGamme > div > div > a');
 		console.log('%s item links found on the page.', itemLinks.length);
 		for (let itemLink of itemLinks) {
-			itemLink = new Link({origin: ORIGIN, type: 'item', url: resolveUrl(itemLink)});
+			itemLink = new Link({ origin: ORIGIN, type: 'item', url: resolveUrl(itemLink) });
 			await itemLink.customSave();
 		}
 
@@ -65,7 +60,7 @@ module.exports = class PromoDentaire extends Scraper {
 			itemLinks = utils.getLinks($, '#divGamme > div > div > a');
 			console.log('%s item links found on the page.', itemLinks.length);
 			for (let itemLink of itemLinks) {
-				itemLink = new Link({origin: ORIGIN, type: 'item', url: resolveUrl(itemLink)});
+				itemLink = new Link({ origin: ORIGIN, type: 'item', url: resolveUrl(itemLink) });
 				await itemLink.customSave();
 			}
 		}
@@ -79,11 +74,7 @@ module.exports = class PromoDentaire extends Scraper {
 			.text()
 			.trim();
 		const filAriane = $('a.lien_fil_ariane').get();
-		let brand = /Fabricant : ([\S ]+)/m.exec(
-			$('div.contenu_descriptions')
-				.text()
-				.trim()
-		);
+		let brand = /Fabricant : ([\S ]+)/m.exec($('div.contenu_descriptions').text().trim());
 		brand = brand
 			? brand[1].trim()
 			: $('h4')
@@ -135,9 +126,7 @@ module.exports = class PromoDentaire extends Scraper {
 					.text();
 				data.ref2 = ref2.indexOf('Cette référence remplace') != -1 ? /: ([0-9]+)/.exec(ref2)[1] : null;
 
-				const priceRows = $(article).find(
-					'div.article_prix, #divFicheArticleDescriptionArticle td:nth-child(2) div[style="float:right;"], #divFicheArticleDescriptionArticle td:nth-child(3) div[style="float:right;"]'
-				);
+				const priceRows = $(article).find('div.article_prix, #divFicheArticleDescriptionArticle td:nth-child(2) div[style="float:right;"], #divFicheArticleDescriptionArticle td:nth-child(3) div[style="float:right;"]');
 				await utils.asyncForEach(priceRows.get(), async (priceRow) => {
 					if ($(priceRow).hasClass('article_prix')) {
 						// price for one without discount
@@ -147,32 +136,18 @@ module.exports = class PromoDentaire extends Scraper {
 					} else {
 						// prices for lot or with discount
 						//console.debug($(priceRow).html());
-						const priceDescription = $(priceRow)
-							.find('div:nth-child(1)')
-							.text();
+						const priceDescription = $(priceRow).find('div:nth-child(1)').text();
 						const divsCount = $(priceRow).find('div').length;
 						if (priceDescription.indexOf('Par ') == -1) {
 							// price for one with discount
 							data.lot = 1;
-							data.listPrice = extractPriceAsNumber(
-								$(priceRow)
-									.find('div:nth-child(1)')
-									.text()
-							);
-							data.discountPrice = extractPriceAsNumber(
-								$(priceRow)
-									.find('div:nth-child(' + divsCount + ')')
-									.text()
-							);
+							data.listPrice = extractPriceAsNumber($(priceRow).find('div:nth-child(1)').text());
+							data.discountPrice = extractPriceAsNumber($(priceRow).find('div:nth-child(' + divsCount + ')').text());
 						} else {
 							// price for lot
 							data.lot = priceDescription.match(/Par ([0-9]+),/)[1];
 							data.listPrice = null;
-							data.discountPrice = extractPriceAsNumber(
-								$(priceRow)
-									.find('div:nth-child(' + divsCount + ')')
-									.text()
-							);
+							data.discountPrice = extractPriceAsNumber($(priceRow).find('div:nth-child(' + divsCount + ')').text());
 						}
 					}
 					try {

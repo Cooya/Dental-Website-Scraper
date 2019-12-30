@@ -1,24 +1,19 @@
 const mongoose = require('mongoose');
 
 module.exports = (dynamicSchema, index, mapping) => {
-	const itemSchema = new mongoose.Schema(
-		Object.assign(
-			{
-				origin: {
-					type: String,
-					required: true
-				},
-				url: {
-					type: String,
-					required: true
-					//unique: true
-				}
-			},
-			dynamicSchema
-		)
-	);
+	const itemSchema = new mongoose.Schema(Object.assign({
+		origin: {
+			type: String,
+			required: true
+		},
+		url: {
+			type: String,
+			required: true
+			//unique: true
+		}
+	}, dynamicSchema));
 
-	if (index) itemSchema.index(index, {unique: true});
+	if (index) itemSchema.index(index, { unique: true });
 
 	itemSchema.pre('validate', function(next) {
 		const docKeys = Object.keys(this.toObject()); // new Object(this) is not working

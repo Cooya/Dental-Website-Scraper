@@ -3,18 +3,14 @@ const mongoose = require('mongoose');
 const config = require('../config');
 const PromoDentaireItem = require('../src/models/PromoDentaireItem');
 require('../src/logs');
-const Scraper = require('../src/scrapers/PromoDentaire');
+const PromoDentaire = require('../src/scrapers/PromoDentaire');
 
-(async function main() {
+(async () => {
 	try {
-		await mongoose.connect(
-			config.dbUrl,
-			{useCreateIndex: true, useNewUrlParser: true}
-		);
+		await mongoose.connect(config.dbUrl, { useCreateIndex: true, useNewUrlParser: true });
 
-		const items = await PromoDentaireItem.find({origin: 'PromoDentaire'});
 		let i = 0;
-		for (let item of items) {
+		for (let item of await PromoDentaireItem.find({ origin: 'PromoDentaire' })) {
 			if (item.lot > 1 && !item.discountPrice) {
 				item.discountPrice = item.listPrice;
 				item.listPrice = null;
@@ -24,8 +20,8 @@ const Scraper = require('../src/scrapers/PromoDentaire');
 		}
 		console.log(i);
 
-		const scraper = new Scraper('PromoDentaire');
-		await scraper.saveItemsIntoFile('PromoDentaire', config.outputFile);
+		const scraper = new PromoDentaire();
+		await scraper.saveItemsIntoFile(config.outputFile);
 
 		await mongoose.disconnect();
 	} catch (e) {
