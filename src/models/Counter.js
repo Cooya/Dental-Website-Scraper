@@ -18,9 +18,9 @@ CounterSchema.methods.inc = async function() {
 };
 
 CounterSchema.statics.get = async function(id, initialValue = 0) {
-	let counter = await this.findOne({id});
+	let counter = await this.findOne({ id });
 	if (!counter) {
-		counter = new this({id, value: initialValue});
+		counter = new this({ id, value: initialValue });
 		await counter.save();
 	}
 	return counter;

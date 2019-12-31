@@ -63,4 +63,4 @@ const schema = {
 	}
 };
 
-module.exports = require('./Item')(schema, {reference: 1, soldBy: 1});
+module.exports = require('./Item')(schema, { reference: 1, soldBy: 1 });

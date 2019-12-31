@@ -1,47 +1,53 @@
-const assert = require('assert');
 const utils = require('@coya/utils');
 
-const Counter = require('../models/Counter');
 const Item = require('../models/HenryScheinItem');
 const Link = require('../models/Link');
 const Scraper = require('./Scraper');
+const sleep = require('../utils/sleep');
 
-const BASE_URL = 'https://www.henryschein.fr';
-const PRODUCTS_URL = 'https://www.henryschein.fr/fr-fr/Shopping/ProductBrowser.aspx';
-const ORIGIN = 'HenrySchein';
+const CATEGORIES_URL = 'https://www.henryschein.fr/fr-fr/dental/c/browsesupplies';
 const COOKIES = 'Commerce_TestPersistentCookie=TestCookie; Commerce_TestSessionCookie=TestCookie; ASP.NET_SessionId=w4fhg5q0h3sykb1y4v3bwxsu; HSCSProfile=HSCSProfile=%7ba6264d5c-7518-43b7-8a50-6634c95a6c41%7d&PreferredCultureId=fr-FR&ExchangeMessage=&ShowProductsPicture=False; OneWeb=DivisionId=dental; OneWebSessionCookie=AccordianMenuActiveIndex=0&GetNextCounter=4130&BrowseSupply_ContShoppingKey=%2ffr-fr%2fShopping%2fProductBrowser.aspx%3fpagenumber%3d1&LastViewedProducts=896-1129%2c896-1973%2c894-2456; CampaignHistory=2907,2868,2913,2902,2857,2907,2868,2913,2902,2857,2907,2868,2913,2902,2857,2907,2868,2913,2902,2857,2907,2868,2913,2902,2857,2907,2868,2913,2902,2857,2907,2868,2913,2902,2857; TestCookie=ok; france_website#lang=fr-FR';
-
-const resolveUrl = utils.resolveUrl.bind(null, BASE_URL);
 
 module.exports = class HenrySchein extends Scraper {
 	constructor() {
-		super(ORIGIN);
+		super('HenrySchein');
 	}
 
 	async retrieveAllCategoryLinks() {
-		console.log('No category link to fetch.');
-	}
+		let $, $$, link;
 
-	async retrieveAllItemLinks() {
-		console.log('Fetching item links...');
-		const counter = await Counter.get('henry_schein_page_number', 1);
-		while (true) {
-			const $ = await utils.get(PRODUCTS_URL + '?pagenumber=' + counter.value, { headers: { Cookie: COOKIES }, encoding: 'iso-8859-15' });
-			const itemLinks = $('h2.product-name > a');
-			if (!itemLinks.length) break;
-			for (let itemLink of itemLinks.get()) {
-				let link = new Link({ type: 'item', origin: ORIGIN, url: resolveUrl($(itemLink).attr('href')) });
+		console.log('Fetching category links...');
+		$ = await getPage(CATEGORIES_URL);
+		for(let categoryUrl of getHrefs($, 'ul.hs-categories li.item > a')) {
+			$$ = await getPage(categoryUrl);
+			for(let subcategoryUrl of getHrefs($$, 'ul.hs-categories li.item > a')) {
+				link = new Link({ origin: this.origin, type: 'category', url: subcategoryUrl });
 				await link.customSave();
 			}
-
-			console.log('Page %s processed.', counter.value);
-			await counter.inc();
 		}
-		console.log('%s item links are in database.', await Link.find({ type: 'item', origin: ORIGIN }).countDocuments());
+
+		console.log('%s category links are in database.', await Link.find({ origin: this.origin, type: 'category' }).countDocuments());
+	}
+
+	async retrieveItemLinks(categoryUrl) {
+		let $, link, pagesNumber;
+		
+		$ = await getPage(categoryUrl);
+		pagesNumber = parseInt($('div.hs-paging').attr('data-total'));
+
+		for(let i = 1; i <= pagesNumber; ++i) {
+			if(i != 1)
+				$ = await getPage(categoryUrl + '?pagenumber=' + i);
+
+			for(let itemUrl of getHrefs($, 'h2.product-name > a')) {
+				link = new Link({ origin: this.origin, type: 'item', url: itemUrl });
+				await link.customSave();
+			}
+		}
 	}
 
 	async retrieveItem(itemUrl) {
-		const $ = await utils.get(itemUrl, { headers: { Cookie: COOKIES }, encoding: 'iso-8859-15' });
+		const $ = await getPage(itemUrl);
 
 		if ($('article h1').text().trim() == 'Ce produit est introuvable. Il n\'existe plus dans le catalogue actuel.') {
 			console.warn('The item at the url "' + itemUrl + '" does not exist anymore.');
@@ -52,24 +58,33 @@ module.exports = class HenrySchein extends Scraper {
 		const title = designation.split(' - ').filter((val) => !!val.trim());
 		const subtitleSplit = $('div.page-title small').text().split(' | ');
 		const subtitlePart1 = subtitleSplit[0].split(' / ');
-		const crossedPrice = $('div.value > s').text().trim();
+		const crossedPrice = $('div.product span.price-mod').text().replace('€', '').trim();
 		const refsAndBrand = $('h2.product-title:nth-child(1) > small').text().replace(/\n/g, ' ');
 		const finalAttr = title[title.length - 1].trim();
+
+		// parse prices
+		// https://www.henryschein.fr/fr-fr/dental/p/usage-unique/gants-latex-sans-poudre/gants-cybercoat-cybertech-taille-xl-boite-de-90/900-9562
 		let pricesByLot = [];
-		const prices = $('aside.price-opts > strong').text().trim();
-		if (prices.indexOf('Prix non disponible') != -1) pricesByLot.push({ soldBy: 1, commonPrice: 0, discountPrice: null });
+		let prices = $('section.product-desc div.product-price span.amount').text().trim();
+		if (prices.indexOf('Prix non disponible') != -1)
+			pricesByLot.push({ soldBy: 1, commonPrice: 0, discountPrice: null });
 		else {
-			for (let price of prices.split('  ')) {
-				if (price.indexOf('x') == -1) {
-					// no price by lot
+			prices = prices.split(' ');
+			for(let i = 0; i < prices.length; ++i) {
+				// price for a single item
+				if(i == 0) {
 					pricesByLot.push({
 						soldBy: 1,
-						commonPrice: crossedPrice ? crossedPrice : price,
-						discountPrice: crossedPrice ? price : null
+						commonPrice: crossedPrice ? crossedPrice : prices[i],
+						discountPrice: crossedPrice ? prices[i] : null
 					});
-				} else {
-					const values = /x([0-9]+) ([0-9 ]+,[0-9]+)/.exec(price);
-					pricesByLot.push({ soldBy: values[1], commonPrice: values[2], discountPrice: null });
+				}
+				// price for items by lot
+				else if(prices[i].includes('x')) {
+					const quantity = parseInt(prices[i].match(/x([0-9]+)/)[1]);
+					const price = Number(prices[i + 1].replace(',', '.').replace('€', ''));
+					pricesByLot.push({ soldBy: quantity, commonPrice: price, discountPrice: null });
+					i++;
 				}
 			}
 		}
@@ -77,7 +92,7 @@ module.exports = class HenrySchein extends Scraper {
 		let counter = 0;
 		for (let priceByLot of pricesByLot) {
 			const itemData = {
-				origin: ORIGIN,
+				origin: this.origin,
 				url: itemUrl,
 				family: subtitlePart1[0].trim(),
 				subfamily: subtitlePart1[1].trim(),
@@ -110,4 +125,21 @@ function extractPriceAsNumber(price) {
 	return parseFloat(price);
 }
 
-assert.equal(extractPriceAsNumber('3 641,49 €'), 3641.49);
+function getHrefs($, selector) {
+	return $(selector).map(function() {
+		return $(this).attr('href');
+	}).get();
+}
+
+async function getPage(url) {
+	console.debug(`Requesting ${url}...`);
+	try {
+		return await utils.get(url, { headers: { Cookie: COOKIES }, encoding: 'iso-8859-15' });
+	} catch(e) {
+		if(e.code == 'ECONNABORTED') {
+			console.warn('The connection has been closed, trying again...');
+			await sleep(5);
+			return getPage(url);
+		} else throw e;
+	}
+}

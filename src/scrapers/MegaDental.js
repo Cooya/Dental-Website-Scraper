@@ -1,5 +1,4 @@
 const cheerio = require('cheerio');
-const fs = require('fs');
 const sleep = require('system-sleep');
 const parseString = require('xml2js').parseString;
 const querystring = require('querystring');
@@ -7,14 +6,12 @@ const util = require('util');
 const utils = require('@coya/utils');
 const uuidv1 = require('uuid/v1');
 
-const config = require('../../config');
 const Item = require('../models/MegaDentalItem');
 const Link = require('../models/Link');
 const Scraper = require('./Scraper');
 
 const BASE_URL = 'https://www.megadental.fr';
 const SITE_MAP_URL = 'https://www.megadental.fr/sitemap.xml';
-const ORIGIN = 'MegaDental';
 const CATEGORY_LINKS_COUNT = 284;
 const SPECS_LIST = [
 	'Code Article fournisseur',
@@ -35,7 +32,7 @@ const resolveUrl = utils.resolveUrl.bind(null, BASE_URL);
 
 module.exports = class MegaDental extends Scraper {
 	constructor() {
-		super(ORIGIN);
+		super('MegaDental');
 	}
 
 	async analyseSiteMap() {
@@ -43,23 +40,23 @@ module.exports = class MegaDental extends Scraper {
 		const xml = await utils.request('get', SITE_MAP_URL);
 		const json = await parseXML(xml);
 
-		const linksInDatabase = await Link.countDocuments({ origin: ORIGIN, type: 'item' });
+		const linksInDatabase = await Link.countDocuments({ origin: this.origin, type: 'item' });
 		if(linksInDatabase == json.urlset.url.length) {
 			console.log('Items collection up-to-date.');
 			return;
 		}
 
 		for (let url of json.urlset.url) {
-			if(await Link.findOne({ origin: ORIGIN, type: 'item', url: url.loc[0] }))
+			if(await Link.findOne({ origin: this.origin, type: 'item', url: url.loc[0] }))
 				continue;
 
-			await (new Link({ origin: ORIGIN, type: 'item', url: url.loc[0] })).customSave();
+			await (new Link({ origin: this.origin, type: 'item', url: url.loc[0] })).customSave();
 
 			// if (link.match(/https:\/\/www\.megadental\.fr\/[a-z0-9-]+\/[a-z0-9-]+\.html/)) {
-			// 	link = new Link({origin: ORIGIN, type: 'category', url: link});
+			// 	link = new Link({origin: this.origin, type: 'category', url: link});
 			// 	await link.customSave();
 			// } else if (link.match(/https:\/\/www\.megadental\.fr\/[a-z0-9-]+\.html/)) {
-			// 	link = new Link({origin: ORIGIN, type: 'item', url: link});
+			// 	link = new Link({origin: this.origin, type: 'item', url: link});
 			// 	await link.customSave();
 			// }
 		}
@@ -70,17 +67,17 @@ module.exports = class MegaDental extends Scraper {
 		// const $ = await utils.get(BASE_URL);
 		// const categoryLinks = utils.getLinks($, 'div.menu-rayon li > a, #menu-marques > ul > li > a');
 		// for(let categoryLink of categoryLinks) {
-		// 	categoryLink = new Link({origin: ORIGIN, type: 'category', url: resolveUrl(categoryLink)});
+		// 	categoryLink = new Link({origin: this.origin, type: 'category', url: resolveUrl(categoryLink)});
 		// 	await categoryLink.customSave();
 		// }
 
 		// better way (retrieve all category links and all item links)
-		const categoryLinksCount = await Link.countDocuments({ origin: ORIGIN, type: 'category' });
+		const categoryLinksCount = await Link.countDocuments({ origin: this.origin, type: 'category' });
 		if (categoryLinksCount < CATEGORY_LINKS_COUNT)
 			await this.analyseSiteMap();
 
 		console.log('All category links have been retrieved.');
-		console.log('%s category links are in database.', await Link.find({ origin: ORIGIN, type: 'category' }).countDocuments());
+		console.log('%s category links are in database.', await Link.find({ origin: this.origin, type: 'category' }).countDocuments());
 	}
 
 	async retrieveAllItemLinks() {
@@ -96,7 +93,7 @@ module.exports = class MegaDental extends Scraper {
 		const itemLinks = utils.getLinks($, 'a.hover-infos');
 		console.log('%s item links found on the page.', itemLinks.length);
 		for (let itemLink of itemLinks) {
-			itemLink = new Link({ origin: ORIGIN, type: 'item', url: resolveUrl(itemLink) });
+			itemLink = new Link({ origin: this.origin, type: 'item', url: resolveUrl(itemLink) });
 			await itemLink.customSave();
 		}
 
@@ -137,11 +134,6 @@ module.exports = class MegaDental extends Scraper {
 		if($('#product-options-wrapper').length) {
 			const optionsData = JSON.parse($('#product-options-wrapper script[type="text/x-magento-init"]').html());
 
-			if(false) {
-				fs.writeFileSync(config.debugFile, JSON.stringify(optionsData));
-				process.exit(0);
-			}
-
 			let json;
 			try {
 				json = optionsData['#product_addtocart_form'].configurable.spConfig;
@@ -163,7 +155,7 @@ module.exports = class MegaDental extends Scraper {
 						url += specId + '=' + optionId + '&';
 					url = url.substring(0, url.length - 1);
 					products[pId] = {
-						origin: ORIGIN,
+						origin: this.origin,
 						url,
 						attributes: []
 					};
@@ -264,7 +256,7 @@ module.exports = class MegaDental extends Scraper {
 		}
 
 		await Item.newItem({
-			origin: ORIGIN,
+			origin: this.origin,
 			url: itemUrl,
 			designation: $('h1.page-title > span').text().trim() || 'Pas de désignation',
 			reference: $('div[itemprop="sku"]').text().trim() || 'no-ref-' + uuidv1(),
@@ -291,7 +283,7 @@ module.exports = class MegaDental extends Scraper {
 		// 		//console.debug(dynamicData);
 		// 		if (dynamicData) {
 		// 			await Item.newItem({
-		// 				origin: ORIGIN,
+		// 				origin: this.origin,
 		// 				url: itemUrl,
 		// 				designation,
 		// 				reference: dynamicData.reference,
@@ -315,7 +307,7 @@ module.exports = class MegaDental extends Scraper {
 
 		// 	const route = getFirstRoute($, articleId);
 		// 	await Item.newItem({
-		// 		origin: ORIGIN,
+		// 		origin: this.origin,
 		// 		url: itemUrl,
 		// 		designation,
 		// 		reference,

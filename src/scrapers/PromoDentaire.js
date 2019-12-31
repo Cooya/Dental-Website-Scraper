@@ -6,21 +6,19 @@ const Link = require('../models/Link');
 const Scraper = require('./Scraper');
 
 const BASE_URL = 'https://www.promodentaire.com';
-const ORIGIN = 'PromoDentaire';
-const EXPECTED_CATEGORIES_COUNT = 17;
-// and 1853 item links
+const EXPECTED_CATEGORIES_COUNT = 17; // and 1853 item links
 
 const resolveUrl = utils.resolveUrl.bind(null, BASE_URL);
 
 module.exports = class PromoDentaire extends Scraper {
 	constructor() {
-		super(ORIGIN);
+		super('PromoDentaire');
 		this.header.splice(6, 1); // delete the entry "attributesArray"
 		this.header.splice(6, 0, ...['key1', 'attr1', 'key2', 'attr2', 'key3', 'attr3', 'key4', 'attr4', 'key5', 'attr5']);
 	}
 
 	async retrieveAllCategoryLinks() {
-		if ((await Link.find({ origin: ORIGIN, type: 'category' }).countDocuments()) == EXPECTED_CATEGORIES_COUNT) {
+		if ((await Link.find({ origin: this.origin, type: 'category' }).countDocuments()) == EXPECTED_CATEGORIES_COUNT) {
 			console.log('All category links have been retrieved.');
 			return;
 		}
@@ -31,14 +29,14 @@ module.exports = class PromoDentaire extends Scraper {
 		for (let categoryLink of categoryLinks) {
 			console.debug(categoryLink);
 			categoryLink = new Link({
-				origin: ORIGIN,
+				origin: this.origin,
 				type: 'category',
 				url: resolveUrl(categoryLink)
 			});
 			await categoryLink.customSave();
 		}
 		console.log('All category links have been retrieved.');
-		console.log('%s category links are in database.', await Link.find({ origin: ORIGIN, type: 'category' }).countDocuments());
+		console.log('%s category links are in database.', await Link.find({ origin: this.origin, type: 'category' }).countDocuments());
 	}
 
 	async retrieveItemLinks(categoryUrl) {
@@ -50,7 +48,7 @@ module.exports = class PromoDentaire extends Scraper {
 		let itemLinks = utils.getLinks($, '#divGamme > div > div > a');
 		console.log('%s item links found on the page.', itemLinks.length);
 		for (let itemLink of itemLinks) {
-			itemLink = new Link({ origin: ORIGIN, type: 'item', url: resolveUrl(itemLink) });
+			itemLink = new Link({ origin: this.origin, type: 'item', url: resolveUrl(itemLink) });
 			await itemLink.customSave();
 		}
 
@@ -60,7 +58,7 @@ module.exports = class PromoDentaire extends Scraper {
 			itemLinks = utils.getLinks($, '#divGamme > div > div > a');
 			console.log('%s item links found on the page.', itemLinks.length);
 			for (let itemLink of itemLinks) {
-				itemLink = new Link({ origin: ORIGIN, type: 'item', url: resolveUrl(itemLink) });
+				itemLink = new Link({ origin: this.origin, type: 'item', url: resolveUrl(itemLink) });
 				await itemLink.customSave();
 			}
 		}
@@ -87,7 +85,7 @@ module.exports = class PromoDentaire extends Scraper {
 			brand = split[split.length - 1].trim();
 		}
 		const data = {
-			origin: ORIGIN,
+			origin: this.origin,
 			url: itemUrl,
 			family: $(filAriane[1]).text(),
 			subFamily: $(filAriane[2]).text(),

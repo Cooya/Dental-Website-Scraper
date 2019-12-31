@@ -55,7 +55,7 @@ class Scraper {
 		throw new Error('This method has to be overridden.');
 	}
 
-	async saveItemsIntoFile(outputFile) {
+	async saveItemsIntoFile() {
 		const items = await this.Item.find({ origin: this.origin });
 		for (let i = 0; i < items.length; ++i) {
 			items[i] = items[i]._doc;
@@ -70,11 +70,13 @@ class Scraper {
 			}
 		}
 
-		var ws = xlsx.utils.json_to_sheet(items);
+		const ws = xlsx.utils.json_to_sheet(items);
 		const wb = xlsx.utils.book_new();
 		xlsx.utils.book_append_sheet(wb, ws, this.origin);
+		const date = new Date().toISOString().split('T')[0].split('-').reverse().join('_');
+		const outputFile = `assets/${this.origin.toLowerCase()}_output_${date}.xlsx`;
 		xlsx.writeFile(wb, outputFile);
-		console.log('All items have been saved into the output file.');
+		console.log(`All items have been saved into the output file "${outputFile}".`);
 	}
 }
 
