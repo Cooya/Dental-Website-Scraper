@@ -1,5 +1,4 @@
 const cheerio = require('cheerio');
-const sleep = require('system-sleep');
 const parseString = require('xml2js').parseString;
 const querystring = require('querystring');
 const util = require('util');
@@ -9,6 +8,7 @@ const uuidv1 = require('uuid/v1');
 const Item = require('../models/MegaDentalItem');
 const Link = require('../models/Link');
 const Scraper = require('./Scraper');
+const sleep = require('../utils/sleep');
 
 const BASE_URL = 'https://www.megadental.fr';
 const SITE_MAP_URL = 'https://www.megadental.fr/sitemap.xml';
@@ -101,7 +101,7 @@ module.exports = class MegaDental extends Scraper {
 		if (nextPageButton.length) {
 			// if next page exists, we process it
 			console.log('Pagination found.');
-			sleep(3000);
+			await sleep(3);
 			await this.retrieveItemLinks(resolveUrl($(nextPageButton).find('a').attr('href')));
 		}
 	}
@@ -321,7 +321,7 @@ module.exports = class MegaDental extends Scraper {
 		// 		discountPrice: discountPrice ? /([0-9.]+)€/.exec(discountPrice)[1] : null
 		// 	});
 		// 	itemsCounter++;
-		// 	//sleep(3000);
+		// 	//await sleep(3);
 		// }
 	}
 
