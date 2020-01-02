@@ -5,8 +5,7 @@ module.exports = require('./Item')({
 	},
 	reference: {
 		type: String,
-		required: true,
-		unique: true
+		required: true
 	},
 	supplierArticleCode: {
 		type: String,
@@ -32,34 +31,38 @@ module.exports = require('./Item')({
 		type: Array,
 		required: true
 	}
-}, null, {
-	'url': 'URL',
-	'designation': 'DESIGNATION',
-	'reference': 'REFERENCE',
-	'supplierArticleCode': 'CODE ARTICLE FOURNISSEUR',
-	'presentation': 'PRESENTATION',
-	'attributeName1': 'NOM ATTRIBUT 1',
-	'attributeValue1': 'VALEUR ATTRIBUT 1',
-	'attributeName2': 'NOM ATTRIBUT 2',
-	'attributeValue2': 'VALEUR ATTRIBUT 2',
-	'attributeName3': 'NOM ATTRIBUT 3',
-	'attributeValue3': 'VALEUR ATTRIBUT 3',
-	'attributeName4': 'NOM ATTRIBUT 4',
-	'attributeValue4': 'VALEUR ATTRIBUT 4',
-	'attributeName5': 'NOM ATTRIBUT 5',
-	'attributeValue5': 'VALEUR ATTRIBUT 5',
-	'attributeName6': 'NOM ATTRIBUT 6',
-	'attributeValue6': 'VALEUR ATTRIBUT 6',
-	'attributeName7': 'NOM ATTRIBUT 7',
-	'attributeValue7': 'VALEUR ATTRIBUT 7',
-	'description': 'DESCRIPTIF',
-	'brand': 'MARQUE',
-	'price1': 'PRIX DE REFERENCE UNITAIRE',
-	'discountPrice1': 'PRIX PROMOTIONNEL UNITAIRE',
-	'quantity2': 'QUANTITE DEGRESSIF 1',
-	'discountPrice2': 'PRIX PROMOTIONNEL DEGRESSIF 1',
-	'quantity3': 'QUANTITE DEGRESSIF 2',
-	'discountPrice3': 'PRIX PROMOTIONNEL DEGRESSIF 2',
-	'quantity4': 'QUANTITE DEGRESSIF 3',
-	'discountPrice4': 'PRIX PROMOTIONNEL DEGRESSIF 3'
+}, {
+	origin: 'MegaDental',
+	index: { reference: 1 },
+	mapping: {
+		'url': 'URL',
+		'designation': 'DESIGNATION',
+		'reference': 'REFERENCE',
+		'supplierArticleCode': 'CODE ARTICLE FOURNISSEUR',
+		'presentation': 'PRESENTATION',
+		'attributeName1': 'NOM ATTRIBUT 1',
+		'attributeValue1': 'VALEUR ATTRIBUT 1',
+		'attributeName2': 'NOM ATTRIBUT 2',
+		'attributeValue2': 'VALEUR ATTRIBUT 2',
+		'attributeName3': 'NOM ATTRIBUT 3',
+		'attributeValue3': 'VALEUR ATTRIBUT 3',
+		'attributeName4': 'NOM ATTRIBUT 4',
+		'attributeValue4': 'VALEUR ATTRIBUT 4',
+		'attributeName5': 'NOM ATTRIBUT 5',
+		'attributeValue5': 'VALEUR ATTRIBUT 5',
+		'attributeName6': 'NOM ATTRIBUT 6',
+		'attributeValue6': 'VALEUR ATTRIBUT 6',
+		'attributeName7': 'NOM ATTRIBUT 7',
+		'attributeValue7': 'VALEUR ATTRIBUT 7',
+		'description': 'DESCRIPTIF',
+		'brand': 'MARQUE',
+		'price1': 'PRIX DE REFERENCE UNITAIRE',
+		'discountPrice1': 'PRIX PROMOTIONNEL UNITAIRE',
+		'quantity2': 'QUANTITE DEGRESSIF 1',
+		'discountPrice2': 'PRIX PROMOTIONNEL DEGRESSIF 1',
+		'quantity3': 'QUANTITE DEGRESSIF 2',
+		'discountPrice3': 'PRIX PROMOTIONNEL DEGRESSIF 2',
+		'quantity4': 'QUANTITE DEGRESSIF 3',
+		'discountPrice4': 'PRIX PROMOTIONNEL DEGRESSIF 3'
+	}
 });

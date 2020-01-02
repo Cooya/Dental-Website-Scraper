@@ -82,16 +82,16 @@ module.exports = class HenrySchein extends Scraper {
 				// price for items by lot
 				else if(prices[i].includes('x')) {
 					const quantity = parseInt(prices[i].match(/x([0-9]+)/)[1]);
-					const price = Number(prices[i + 1].replace(',', '.').replace('€', ''));
+					const price = prices[i + 1].replace(',', '.').replace('€', '');
 					pricesByLot.push({ soldBy: quantity, commonPrice: price, discountPrice: null });
 					i++;
 				}
 			}
 		}
 
-		let counter = 0;
+		let itemData, counter = 0;
 		for (let priceByLot of pricesByLot) {
-			const itemData = {
+			itemData = {
 				origin: this.origin,
 				url: itemUrl,
 				family: subtitlePart1[0].trim(),
@@ -118,11 +118,7 @@ module.exports = class HenrySchein extends Scraper {
 };
 
 function extractPriceAsNumber(price) {
-	price = /[0-9\s]+[,|.][0-9]+/
-		.exec(price)[0]
-		.replace(/,/g, '.')
-		.replace(/\s/g, '');
-	return parseFloat(price);
+	return parseFloat(price.match(/[0-9\s]+[,|.][0-9]+/)[0].replace(/,/g, '.').replace(/\s/g, ''));
 }
 
 function getHrefs($, selector) {

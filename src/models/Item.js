@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-module.exports = (dynamicSchema, index, mapping) => {
+module.exports = (dynamicSchema, options) => {
 	const itemSchema = new mongoose.Schema(Object.assign({
 		origin: {
 			type: String,
@@ -9,11 +9,12 @@ module.exports = (dynamicSchema, index, mapping) => {
 		url: {
 			type: String,
 			required: true
-			//unique: true
 		}
 	}, dynamicSchema));
 
-	if (index) itemSchema.index(index, { unique: true });
+	// if an index is provided
+	if (options.index && options.origin)
+		itemSchema.index(options.index, { unique: true, partialFilterExpression: { origin: options.origin } });
 
 	itemSchema.pre('validate', function(next) {
 		const docKeys = Object.keys(this.toObject()); // new Object(this) is not working
@@ -35,6 +36,7 @@ module.exports = (dynamicSchema, index, mapping) => {
 		} catch (e) {
 			// "E11000 duplicate key error collection" or "E11000 duplicate key error index" (it depends of MongoDB version)
 			if (e.message.indexOf('E11000 duplicate key error') != -1) {
+				console.log(e);
 				console.warn('This item has already been processed.');
 				return;
 			}
@@ -44,7 +46,7 @@ module.exports = (dynamicSchema, index, mapping) => {
 	};
 
 	itemSchema.statics.getMapping = () => {
-		return mapping;
+		return options.mapping;
 	};
 
 	return mongoose.model('Item', itemSchema);

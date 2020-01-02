@@ -1,4 +1,4 @@
-const schema = {
+module.exports = require('./Item')({
 	family: {
 		type: String,
 		required: true
@@ -31,9 +31,7 @@ const schema = {
 		type: String,
 		required: true,
 		validate: {
-			validator: function(v) {
-				return /[0-9-]+/.test(v);
-			},
+			validator: v => /[0-9-]+/.test(v),
 			message: 'The reference is invalid.'
 		}
 	},
@@ -61,6 +59,7 @@ const schema = {
 		type: Number,
 		required: false
 	}
-};
-
-module.exports = require('./Item')(schema, { reference: 1, soldBy: 1 });
+}, {
+	origin: 'HenrySchein',
+	index: { reference: 1, soldBy: 1 }
+});
