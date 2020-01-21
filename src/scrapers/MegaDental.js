@@ -8,11 +8,9 @@ const uuidv1 = require('uuid/v1');
 const Item = require('../models/MegaDentalItem');
 const Link = require('../models/Link');
 const Scraper = require('./Scraper');
-const sleep = require('../utils/sleep');
 
 const BASE_URL = 'https://www.megadental.fr';
 const SITE_MAP_URL = 'https://www.megadental.fr/sitemap.xml';
-const CATEGORY_LINKS_COUNT = 284;
 const SPECS_LIST = [
 	'Code Article fournisseur',
 	'Dispositif Medical',
@@ -28,7 +26,10 @@ const SPECS_LIST = [
 ];
 
 const parseXML = util.promisify(parseString);
-const resolveUrl = utils.resolveUrl.bind(null, BASE_URL);
+const requestOptions = {
+	timeout: 30000,
+	headers: { 'User-Agent':'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:72.0) Gecko/20100101 Firefox/72.0' }
+};
 
 module.exports = class MegaDental extends Scraper {
 	constructor() {
@@ -64,7 +65,8 @@ module.exports = class MegaDental extends Scraper {
 
 	async retrieveAllCategoryLinks() {
 		// gathering without sitemap
-		const $ = await utils.get(BASE_URL);
+		console.log(`Request to ${BASE_URL}...`);
+		const $ = await utils.get(BASE_URL, requestOptions);
 
 		const submenus = await $('.submenu.dropdown-menu').get();
 		for(let submenu of submenus) {
@@ -92,7 +94,7 @@ module.exports = class MegaDental extends Scraper {
 		let page = 1;
 		while(true) {
 			console.log(`Request to ${categoryUrl + '?p=' + page}...`);
-			const $ = await utils.get(categoryUrl + '?p=' + page, { timeout: 30000 });
+			const $ = await utils.get(categoryUrl + '?p=' + page, requestOptions);
 
 			const itemLinks = await utils.getLinks($, 'ol.products.list a.product-item-link');
 			console.log('%s item links found on the page.', itemLinks.length);
@@ -113,7 +115,7 @@ module.exports = class MegaDental extends Scraper {
 		let $;
 		while(true) {
 			try {
-				$ = await utils.get(itemUrl, { timeout: 10000 });
+				$ = await utils.get(itemUrl, requestOptions);
 				break;
 			} catch(e) {
 				console.warn('Timeout, trying again...');
