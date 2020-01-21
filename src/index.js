@@ -22,7 +22,7 @@ require('./utils/logs');
 			process.exit(0);
 		}
 
-		await mongoose.connect(config.dbUrl, { useCreateIndex: true, useNewUrlParser: true });
+		await mongoose.connect(config.dbUrl, { useCreateIndex: true, useNewUrlParser: true, useUnifiedTopology: true });
 
 		if(flush) {
 			console.log(`Flushing data for "${origin}"...`);

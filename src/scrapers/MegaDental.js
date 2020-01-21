@@ -63,50 +63,52 @@ module.exports = class MegaDental extends Scraper {
 	}
 
 	async retrieveAllCategoryLinks() {
-		// old way
-		// const $ = await utils.get(BASE_URL);
-		// const categoryLinks = utils.getLinks($, 'div.menu-rayon li > a, #menu-marques > ul > li > a');
-		// for(let categoryLink of categoryLinks) {
-		// 	categoryLink = new Link({origin: this.origin, type: 'category', url: resolveUrl(categoryLink)});
-		// 	await categoryLink.customSave();
-		// }
+		// gathering without sitemap
+		const $ = await utils.get(BASE_URL);
 
-		// better way (retrieve all category links and all item links)
-		const categoryLinksCount = await Link.countDocuments({ origin: this.origin, type: 'category' });
-		if (categoryLinksCount < CATEGORY_LINKS_COUNT)
-			await this.analyseSiteMap();
+		const submenus = await $('.submenu.dropdown-menu').get();
+		for(let submenu of submenus) {
+			const menuPanels = await $(submenu).find('.nav-item.level1').get();
+			for(let menuPanel of menuPanels) {
+				const category = $(menuPanel).find('a.nav-anchor.subitems-group > span').text();
+				const subcategoryLinks = $(menuPanel).find('div.nav-item.level2 > a.nav-anchor').get();
+				for(let subcategoryLink of subcategoryLinks) {
+					subcategoryLink = new Link({ origin: this.origin, type: 'category', url: $(subcategoryLink).attr('href'), data: { category, subcategory: $(subcategoryLink).text() } });
+					await subcategoryLink.customSave();
+				}
+			}
+		}
+
+		// gathering with sitemap
+		// const categoryLinksCount = await Link.countDocuments({ origin: this.origin, type: 'category' });
+		// if (categoryLinksCount < CATEGORY_LINKS_COUNT)
+		// 	await this.analyseSiteMap();
 
 		console.log('All category links have been retrieved.');
 		console.log('%s category links are in database.', await Link.find({ origin: this.origin, type: 'category' }).countDocuments());
 	}
 
-	async retrieveAllItemLinks() {
-		// this part is skipped because all links are retrieved through the sitemap
-	}
+	async retrieveItemLinks(categoryUrl, data) {
+		let page = 1;
+		while(true) {
+			console.log(`Request to ${categoryUrl + '?p=' + page}...`);
+			const $ = await utils.get(categoryUrl + '?p=' + page, { timeout: 30000 });
 
-	// this method is not used anymore
-	async retrieveItemLinks(categoryUrl) {
-		const $ = await utils.post(categoryUrl, { body: { nbrParPage: 100 } });
-		if (!$)
-			return;
+			const itemLinks = await utils.getLinks($, 'ol.products.list a.product-item-link');
+			console.log('%s item links found on the page.', itemLinks.length);
 
-		const itemLinks = utils.getLinks($, 'a.hover-infos');
-		console.log('%s item links found on the page.', itemLinks.length);
-		for (let itemLink of itemLinks) {
-			itemLink = new Link({ origin: this.origin, type: 'item', url: resolveUrl(itemLink) });
-			await itemLink.customSave();
-		}
+			for (let itemLink of itemLinks) {
+				itemLink = new Link({ origin: this.origin, type: 'item', url: itemLink, data });
+				await itemLink.customSave();
+			}
 
-		const nextPageButton = $('ul.pagination li:last-child:not(.disabled)');
-		if (nextPageButton.length) {
-			// if next page exists, we process it
-			console.log('Pagination found.');
-			await sleep(3);
-			await this.retrieveItemLinks(resolveUrl($(nextPageButton).find('a').attr('href')));
+			if(!$('li.item.pages-item-next').length)
+				break;
+			page++;
 		}
 	}
 
-	async retrieveItem(itemUrl) {
+	async retrieveItem(itemUrl, data) {
 		console.log(`Processing item "${itemUrl}"...`);
 		let $;
 		while(true) {
@@ -257,6 +259,8 @@ module.exports = class MegaDental extends Scraper {
 
 		await Item.newItem({
 			origin: this.origin,
+			category: data.category,
+			subcategory: data.subcategory,
 			url: itemUrl,
 			designation: $('h1.page-title > span').text().trim() || 'Pas de désignation',
 			reference: $('div[itemprop="sku"]').text().trim() || 'no-ref-' + uuidv1(),

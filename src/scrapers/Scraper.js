@@ -27,8 +27,8 @@ class Scraper {
 		});
 
 		let i = 0;
-		await utils.asyncThreads(categoryLinks, async (categoryLink) => {
-			await this.retrieveItemLinks(categoryLink.url);
+		await utils.asyncThreads(categoryLinks, async categoryLink => {
+			await this.retrieveItemLinks(categoryLink.url, categoryLink.data);
 			await categoryLink.markAsProcessed();
 			console.log('%s/%s category links processed.', ++i, categoryLinks.length);
 		}, config.parallelRequests);
@@ -42,7 +42,7 @@ class Scraper {
 		console.log('%s item links to process.', itemLinks.length);
 		let i = 0;
 		await utils.asyncThreads(itemLinks, async itemLink => {
-			let itemsCounter = await this.retrieveItem(itemLink.url);
+			let itemsCounter = await this.retrieveItem(itemLink.url, itemLink.data);
 			if (itemsCounter == 0) throw new Error('No item has been created for the url "' + itemLink.url + '".');
 			if (itemsCounter > 0) await itemLink.markAsProcessed(); // when it is -1, we just ignore the item without mark it as processed
 			console.log('%s/%s item links processed.', ++i, itemLinks.length);

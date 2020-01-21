@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-module.exports = (dynamicSchema, options) => {
+module.exports = (dynamicSchema, options = {}) => {
 	const itemSchema = new mongoose.Schema(Object.assign({
 		origin: {
 			type: String,
