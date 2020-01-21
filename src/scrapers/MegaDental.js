@@ -158,6 +158,8 @@ module.exports = class MegaDental extends Scraper {
 					url = url.substring(0, url.length - 1);
 					products[pId] = {
 						origin: this.origin,
+						category: data.category,
+						subcategory: data.subcategory,
 						url,
 						attributes: []
 					};
